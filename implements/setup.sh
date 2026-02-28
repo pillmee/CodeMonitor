@@ -56,6 +56,10 @@ if [ "$NODE_MAJOR" -lt 18 ]; then
     echo "Node.js version $NODE_VERSION is too old (Vite requires v18+)."
     if [ "$OS_TYPE" == "Linux" ]; then
         echo "Attempting to upgrade Node.js to v20 via NodeSource..."
+        # Resolve potential package conflicts (libnode-dev often causes issues with NodeSource)
+        sudo apt-get remove -y libnode-dev node-gyp 2>/dev/null
+        sudo apt-get install -f -y 2>/dev/null # Repair broken states
+
         # Install curl if missing first
         if ! command -v curl &> /dev/null; then
             sudo apt-get update && sudo apt-get install -y curl
