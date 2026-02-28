@@ -102,7 +102,7 @@ if [ -d "frontend" ]; then
 else
     echo "Error: 'frontend' directory not found."
     cleanup
-}
+fi
 
 echo "=========================================="
 echo "CodeMonitor is running!"
