@@ -53,13 +53,28 @@ install_dep "npm" "node" "npm"
 NODE_VERSION=$(node -v | cut -d'v' -f2)
 NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d'.' -f1)
 if [ "$NODE_MAJOR" -lt 18 ]; then
-    echo "Error: Node.js version $NODE_VERSION is too old. Vite requires Node.js 18 or higher."
+    echo "Node.js version $NODE_VERSION is too old (Vite requires v18+)."
     if [ "$OS_TYPE" == "Linux" ]; then
-        echo "Tip: You can install a newer version using NodeSource or nvm:"
-        echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
-        echo "  sudo apt-get install -y nodejs"
+        echo "Attempting to upgrade Node.js to v20 via NodeSource..."
+        # Install curl if missing first
+        if ! command -v curl &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y curl
+        fi
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        
+        # Re-verify
+        NODE_VERSION=$(node -v | cut -d'v' -f2)
+        NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d'.' -f1)
+        if [ "$NODE_MAJOR" -lt 18 ]; then
+            echo "Error: Automated upgrade failed. Please install Node.js 18+ manually."
+            exit 1
+        fi
+        echo "Node.js successfully upgraded to $NODE_VERSION."
+    else
+        echo "Error: Node.js version $NODE_VERSION is too old. Please upgrade to Node.js 18+."
+        exit 1
     fi
-    exit 1
 fi
 
 # 2. Setup Python Backend Environment
