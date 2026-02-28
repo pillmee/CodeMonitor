@@ -26,6 +26,35 @@ cleanup() {
 # Trap SIGINT (Ctrl+C) and SIGTERM
 trap cleanup SIGINT SIGTERM
 
+# 0. Check inotify limit on Linux
+if [ "$(uname)" == "Linux" ]; then
+    WATCH_LIMIT=$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo 0)
+    if [ "$WATCH_LIMIT" -lt 524288 ] && [ "$WATCH_LIMIT" -ne 0 ]; then
+        echo "Error: Linux file watcher limit ($WATCH_LIMIT) is too low for Vite."
+        echo "To fix this, run the following command and restart your terminal:"
+        echo "  echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p"
+        exit 1
+    fi
+fi
+
+# Function to check and free port
+check_and_free_port() {
+    local port=$1
+    local name=$2
+    # Check if port is in use
+    PID=$(lsof -ti :$port 2>/dev/null)
+    if [ -n "$PID" ]; then
+        echo "Port $port ($name) is already in use by PID $PID."
+        echo "Attempting to stop the existing process..."
+        kill -9 $PID 2>/dev/null
+        sleep 1
+    fi
+}
+
+echo "Pre-run check: verifying ports..."
+check_and_free_port 8000 "Backend"
+check_and_free_port 5173 "Frontend"
+
 echo "Starting CodeMonitor Backend (FastAPI)..."
 # Start backend in the background
 if [ ! -f "venv/bin/python3" ]; then
