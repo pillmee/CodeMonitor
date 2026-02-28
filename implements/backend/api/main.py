@@ -79,6 +79,15 @@ def add_repository(
         "task_id": task_id
     }
 
+@app.delete("/api/repos/{repo_id}")
+def delete_repository(
+    repo_id: int,
+    repo_mgr: RepositoryManager = Depends(get_repo_manager)
+):
+    """저장소 및 히스토리 삭제"""
+    repo_mgr.delete_repository(repo_id)
+    return {"message": "Repository and its history deleted."}
+
 @app.get("/api/stats")
 def get_statistics(
     repo_ids: Optional[str] = Query(None, description="Comma-separated repo IDs or 'all'"),

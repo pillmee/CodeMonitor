@@ -1,7 +1,7 @@
 import React from 'react';
-import { FiPlus, FiBox } from 'react-icons/fi';
+import { FiPlus, FiBox, FiTrash2 } from 'react-icons/fi';
 
-const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggleRepo, onAddClick }) => {
+const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggleRepo, onAddClick, onDeleteRepo }) => {
     return (
         <div className="sidebar">
             <div className="sidebar-header">
@@ -27,8 +27,9 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                         key={repo.id}
                         className={`repo-item ${viewMode === 'selected' && selectedRepoIds.includes(repo.id) ? 'active' : ''}`}
                         onClick={() => onToggleRepo(repo.id)}
+                        style={{ position: 'relative' }}
                     >
-                        <div className="repo-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="repo-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '24px' }}>
                             <input
                                 type="checkbox"
                                 checked={selectedRepoIds.includes(repo.id)}
@@ -42,6 +43,32 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                             <span className={`status-dot ${repo.status}`}></span>
                             {repo.status === 'backfilling' ? 'Analyzing...' : repo.status}
                         </div>
+                        <button
+                            className="delete-repo-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteRepo(repo.id);
+                            }}
+                            title="Delete Repository"
+                            style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-dim)',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '4px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <FiTrash2 size={14} />
+                        </button>
                     </div>
                 ))}
             </div>

@@ -72,6 +72,20 @@ function App() {
     }
   };
 
+  const handleDeleteRepo = async (repoId) => {
+    if (!window.confirm('Are you sure you want to delete this repository and all its history?')) {
+      return;
+    }
+    try {
+      await axios.delete(`${API_BASE}/repos/${repoId}`);
+      fetchRepositories();
+      // 삭제된 저장소가 선택되어 있었다면 제거
+      setSelectedRepoIds(prev => prev.filter(id => id !== repoId));
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error deleting repository');
+    }
+  };
+
   return (
     <div className="app-container">
       <Sidebar
@@ -81,6 +95,7 @@ function App() {
         onSelectAll={handleSelectAll}
         onToggleRepo={handleToggleRepo}
         onAddClick={() => setIsModalOpen(true)}
+        onDeleteRepo={handleDeleteRepo}
       />
 
       <div className="main-content">

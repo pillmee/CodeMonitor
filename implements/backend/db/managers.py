@@ -46,6 +46,15 @@ class RepositoryManager:
             )
             conn.commit()
 
+    def delete_repository(self, repo_id: int):
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            # history 테이블에서 관련 데이터 삭제
+            cursor.execute("DELETE FROM history WHERE repo_id = ?", (repo_id,))
+            # repositories 테이블에서 삭제
+            cursor.execute("DELETE FROM repositories WHERE id = ?", (repo_id,))
+            conn.commit()
+
 class HistoryManager:
     def __init__(self, db: DatabaseConnection):
         self.db = db
