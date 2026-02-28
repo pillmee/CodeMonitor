@@ -18,7 +18,7 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                     <div className="repo-name">All Repositories</div>
                     <div className="repo-status">
                         <span className="status-dot idle"></span>
-                        Combined View
+                        Total View
                     </div>
                 </div>
 
