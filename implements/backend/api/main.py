@@ -147,5 +147,7 @@ def update_settings(
 
 if __name__ == "__main__":
     import uvicorn
+    # 환경 변수에서 포트 가져오기 (기본값 8000)
+    port = int(os.environ.get("PORT", 8000))
     # 테스트 및 개발용 서버 실행: python implements/backend/api/main.py
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
