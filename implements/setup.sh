@@ -10,6 +10,7 @@ echo "Starting CodeMonitor setup..."
 echo "[1/4] Checking system dependencies..."
 
 OS_TYPE="$(uname)"
+# Check cloc
 if ! command -v cloc &> /dev/null; then
     echo "cloc could not be found. Attempting to install..."
     if [ "$OS_TYPE" == "Darwin" ]; then
@@ -34,6 +35,14 @@ else
     echo "cloc is already installed."
 fi
 
+# Check npm
+if ! command -v npm &> /dev/null; then
+    echo "Error: npm could not be found. Please install Node.js and npm before running this setup."
+    exit 1
+else
+    echo "npm is already installed."
+fi
+
 # 2. Setup Python Backend Environment
 echo "[2/4] Setting up Python virtual environment..."
 if [ ! -d "venv" ]; then
@@ -41,16 +50,15 @@ if [ ! -d "venv" ]; then
     echo "Created virtual environment 'venv'."
 fi
 
-echo "Activating virtual environment and installing backend requirements..."
-source venv/bin/activate
-pip install --upgrade pip
+echo "Installing backend requirements..."
+# Update pip directly using venv path to avoid deactivate issues
+./venv/bin/pip install --upgrade pip
 if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
+    ./venv/bin/pip install -r requirements.txt
 else
     # Fallback if requirements.txt is missing
-    pip install fastapi uvicorn requests pytest GitPython pydantic sqlalchemy
+    ./venv/bin/pip install fastapi uvicorn requests pytest GitPython pydantic sqlalchemy
 fi
-deactivate
 echo "Backend environment setup complete."
 
 # 3. Setup Node Frontend Environment
