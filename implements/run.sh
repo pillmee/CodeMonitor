@@ -28,7 +28,11 @@ trap cleanup SIGINT SIGTERM
 
 echo "Starting CodeMonitor Backend (FastAPI)..."
 # Start backend in the background
-# Use absolute-like path or stay in backend dir to ensure visibility
+if [ ! -f "venv/bin/python3" ]; then
+    echo "Error: Virtual environment not found. Please run ./setup.sh first."
+    exit 1
+fi
+
 (
     cd backend || exit
     ../venv/bin/python3 api/main.py &

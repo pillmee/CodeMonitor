@@ -10,6 +10,18 @@ echo "Starting CodeMonitor setup..."
 echo "[1/4] Checking system dependencies..."
 
 OS_TYPE="$(uname)"
+OS_NAME="$(uname -s)"
+
+# 0. Check for Linux-specific limits (inotify for Vite)
+if [ "$OS_TYPE" == "Linux" ]; then
+    WATCH_LIMIT=$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo 0)
+    if [ "$WATCH_LIMIT" -lt 524288 ] && [ "$WATCH_LIMIT" -ne 0 ]; then
+        echo "Warning: Linux file watcher limit ($WATCH_LIMIT) is too low for Vite."
+        echo "Tip: Run the following command to increase it:"
+        echo "  echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p"
+        echo ""
+    fi
+fi
 
 # Function to install dependencies based on OS
 install_dep() {
@@ -90,6 +102,12 @@ if [ "$OS_TYPE" == "Linux" ]; then
         echo "python3-venv not found. Attempting to install..."
         sudo apt-get install -y python3-venv
     fi
+fi
+
+# Check for broken virtual environment
+if [ -d "venv" ] && [ ! -f "venv/bin/activate" ]; then
+    echo "Found corrupted virtual environment. Re-creating..."
+    rm -rf venv
 fi
 
 if [ ! -d "venv" ]; then
