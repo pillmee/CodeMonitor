@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiPlus, FiBox } from 'react-icons/fi';
 
-const Sidebar = ({ repositories, activeRepoId, onSelectRepo, onAddClick }) => {
+const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggleRepo, onAddClick }) => {
     return (
         <div className="sidebar">
             <div className="sidebar-header">
@@ -12,8 +12,8 @@ const Sidebar = ({ repositories, activeRepoId, onSelectRepo, onAddClick }) => {
 
             <div className="repo-list">
                 <div
-                    className={`repo-item ${activeRepoId === 'all' ? 'active' : ''}`}
-                    onClick={() => onSelectRepo('all')}
+                    className={`repo-item ${viewMode === 'all' ? 'active' : ''}`}
+                    onClick={onSelectAll}
                 >
                     <div className="repo-name">All Repositories</div>
                     <div className="repo-status">
@@ -25,10 +25,19 @@ const Sidebar = ({ repositories, activeRepoId, onSelectRepo, onAddClick }) => {
                 {repositories.map(repo => (
                     <div
                         key={repo.id}
-                        className={`repo-item ${activeRepoId === repo.id ? 'active' : ''}`}
-                        onClick={() => onSelectRepo(repo.id)}
+                        className={`repo-item ${viewMode === 'selected' && selectedRepoIds.includes(repo.id) ? 'active' : ''}`}
+                        onClick={() => onToggleRepo(repo.id)}
                     >
-                        <div className="repo-name">{repo.name}</div>
+                        <div className="repo-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                                type="checkbox"
+                                checked={selectedRepoIds.includes(repo.id)}
+                                onChange={() => onToggleRepo(repo.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ accentColor: 'var(--accent-color)', cursor: 'pointer' }}
+                            />
+                            {repo.name}
+                        </div>
                         <div className="repo-status">
                             <span className={`status-dot ${repo.status}`}></span>
                             {repo.status === 'backfilling' ? 'Analyzing...' : repo.status}

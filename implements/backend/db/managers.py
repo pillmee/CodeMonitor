@@ -83,8 +83,13 @@ class HistoryManager:
         query = f"""
             SELECT repo_id, timestamp, total_loc 
             FROM history 
-            WHERE repo_id IN ({placeholders})
-              AND timestamp >= ? AND timestamp <= ?
+            WHERE id IN (
+                SELECT MAX(id)
+                FROM history 
+                WHERE repo_id IN ({placeholders})
+                  AND timestamp >= ? AND timestamp <= ?
+                GROUP BY repo_id, SUBSTR(timestamp, 1, 10)
+            )
             ORDER BY repo_id, timestamp ASC
         """
         params = repo_ids + [start_date, end_date]

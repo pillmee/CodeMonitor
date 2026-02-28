@@ -9,7 +9,18 @@ const API_BASE = 'http://127.0.0.1:8000/api';
 
 function App() {
   const [repositories, setRepositories] = useState([]);
-  const [activeRepoId, setActiveRepoId] = useState('all');
+  // viewMode: 'all' (합산 단일선) or 'selected' (개별 multi-line)
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('cm_view_mode') || 'all';
+  });
+  const [selectedRepoIds, setSelectedRepoIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cm_selected_repos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,10 +37,30 @@ function App() {
 
   useEffect(() => {
     fetchRepositories();
-    // 10초마다 풀링하여 상태(backfilling 등) 업데이트
-    const interval = setInterval(fetchRepositories, 10000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('cm_view_mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('cm_selected_repos', JSON.stringify(selectedRepoIds));
+  }, [selectedRepoIds]);
+
+  const handleSelectAll = () => {
+    setViewMode('all');
+    setSelectedRepoIds([]);
+  };
+
+  const handleToggleRepo = (repoId) => {
+    setSelectedRepoIds(prev => {
+      const next = prev.includes(repoId)
+        ? prev.filter(id => id !== repoId)
+        : [...prev, repoId];
+      return next;
+    });
+    setViewMode('selected');
+  };
 
   const handleAddRepo = async (name, path) => {
     try {
@@ -45,8 +76,10 @@ function App() {
     <div className="app-container">
       <Sidebar
         repositories={repositories}
-        activeRepoId={activeRepoId}
-        onSelectRepo={setActiveRepoId}
+        viewMode={viewMode}
+        selectedRepoIds={selectedRepoIds}
+        onSelectAll={handleSelectAll}
+        onToggleRepo={handleToggleRepo}
         onAddClick={() => setIsModalOpen(true)}
       />
 
@@ -61,7 +94,8 @@ function App() {
         </div>
 
         <Dashboard
-          activeRepoId={activeRepoId}
+          viewMode={viewMode}
+          selectedRepoIds={selectedRepoIds}
           apiBase={API_BASE}
           repositories={repositories}
         />
