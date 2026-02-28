@@ -10,38 +10,44 @@ echo "Starting CodeMonitor setup..."
 echo "[1/4] Checking system dependencies..."
 
 OS_TYPE="$(uname)"
-# Check cloc
-if ! command -v cloc &> /dev/null; then
-    echo "cloc could not be found. Attempting to install..."
-    if [ "$OS_TYPE" == "Darwin" ]; then
-        if command -v brew &> /dev/null; then
-            brew install cloc
+
+# Function to install dependencies based on OS
+install_dep() {
+    local dep_name=$1
+    local brew_pkg=$2
+    local apt_pkg=$3
+
+    if ! command -v "$dep_name" &> /dev/null; then
+        echo "$dep_name could not be found. Attempting to install..."
+        if [ "$OS_TYPE" == "Darwin" ]; then
+            if command -v brew &> /dev/null; then
+                brew install "$brew_pkg"
+            else
+                echo "Error: Homebrew not found. Please install Homebrew or $dep_name manually."
+                exit 1
+            fi
+        elif [ "$OS_TYPE" == "Linux" ]; then
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y "$apt_pkg"
+            else
+                echo "Error: apt-get not found. Please install $dep_name manually for your Linux distribution."
+                exit 1
+            fi
         else
-            echo "Error: Homebrew not found. Please install Homebrew or cloc manually."
-            exit 1
-        fi
-    elif [ "$OS_TYPE" == "Linux" ]; then
-        if command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y cloc
-        else
-            echo "Error: apt-get not found. Please install cloc manually for your Linux distribution."
+            echo "Error: Unsupported OS ($OS_TYPE). Please install $dep_name manually."
             exit 1
         fi
     else
-        echo "Error: Unsupported OS ($OS_TYPE). Please install cloc manually."
-        exit 1
+        echo "$dep_name is already installed."
     fi
-else
-    echo "cloc is already installed."
-fi
+}
 
-# Check npm
-if ! command -v npm &> /dev/null; then
-    echo "Error: npm could not be found. Please install Node.js and npm before running this setup."
-    exit 1
-else
-    echo "npm is already installed."
-fi
+# Check cloc
+install_dep "cloc" "cloc" "cloc"
+
+# Check node and npm
+install_dep "node" "node" "nodejs"
+install_dep "npm" "node" "npm"
 
 # 2. Setup Python Backend Environment
 echo "[2/4] Setting up Python virtual environment..."
