@@ -53,6 +53,13 @@ class DatabaseConnection:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_history_repo_time ON history(repo_id, timestamp);")
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_history_repo_commit ON history(repo_id, commit_hash);")
             
+            # 스키마 마이그레이션 로직 추가: 구버전 DB에 include_path 컬럼이 없는 경우 추가
+            cursor.execute("PRAGMA table_info(repositories)")
+            columns = [info[1] for info in cursor.fetchall()]
+            if 'include_path' not in columns:
+                cursor.execute("ALTER TABLE repositories ADD COLUMN include_path TEXT;")
+                print("Database Migration: Added 'include_path' column to 'repositories' table.")
+
             conn.commit()
 
     @contextmanager
