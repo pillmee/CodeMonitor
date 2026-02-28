@@ -59,7 +59,7 @@ class BackfillWorker:
         
         return task_id
 
-    def _run_backfill_process(self, task_id: str, repo_id: int, repo_path: str):
+    def _run_backfill_process(self, task_id: str, repo_id: int, repo_path: str, include_path: Optional[str] = None):
         self._update_task(task_id, status=TaskState.RUNNING)
         
         try:
@@ -70,7 +70,7 @@ class BackfillWorker:
             
             repo_manager.update_status(repo_id, "backfilling")
 
-            analyzer = GitAnalyzer(repo_path)
+            analyzer = GitAnalyzer(repo_path, include_path)
             
             # 여기서 cloc를 통한 초기(가장 첫 커밋 직전 상태) 베이스라인 측정을 생략하고,
             # 단순히 0에서 시작하여 insertions/deletions 만으로 계산.

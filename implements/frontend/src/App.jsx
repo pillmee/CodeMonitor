@@ -62,9 +62,9 @@ function App() {
     setViewMode('selected');
   };
 
-  const handleAddRepo = async (name, path) => {
+  const handleAddRepo = async (name, path, include_path) => {
     try {
-      await axios.post(`${API_BASE}/repos`, { name, path });
+      await axios.post(`${API_BASE}/repos`, { name, path, include_path });
       fetchRepositories();
       setIsModalOpen(false);
     } catch (err) {

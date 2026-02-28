@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 const AddRepoModal = ({ onClose, onSubmit }) => {
     const [name, setName] = useState('');
     const [path, setPath] = useState('');
+    const [includePath, setIncludePath] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (name && path) {
-            onSubmit(name, path);
+            onSubmit(name, path, includePath);
         }
     };
 
@@ -37,6 +38,19 @@ const AddRepoModal = ({ onClose, onSubmit }) => {
                             onChange={e => setPath(e.target.value)}
                             required
                         />
+                    </div>
+                    <div className="form-group">
+                        <label>Monitor Specific Directory (Optional)</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. core/services (relative to repo root)"
+                            value={includePath}
+                            onChange={e => setIncludePath(e.target.value)}
+                        />
+                        <small style={{ display: 'block', marginTop: '4px', opacity: 0.7 }}>
+                            Leaves empty to monitor the entire repository.
+                        </small>
                     </div>
 
                     <div className="modal-actions">
