@@ -15,7 +15,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     }, [days]);
 
     const title = viewMode === 'all'
-        ? 'All Repositories (Combined)'
+        ? 'All Repositories (Total)'
         : selectedRepoIds.length > 0
             ? `${selectedRepoIds.length} Repositories Selected`
             : 'No Repository Selected';
@@ -127,13 +127,13 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             <div className="summary-cards">
                 <div className="card">
                     <div className="card-title">
-                        {viewMode === 'all' ? 'Total LOC (All Combined)' : 'Total Lines of Code'}
+                        {viewMode === 'all' ? 'Total LOC (Total)' : 'Total Lines of Code'}
                     </div>
                     <div className="card-value">{totalLOC.toLocaleString()}</div>
                 </div>
                 <div className="card">
                     <div className="card-title">
-                        {viewMode === 'all' ? `${days}D Net Change (Combined)` : `${days} Days Net Change`}
+                        {viewMode === 'all' ? `${days}D Net Change (Total)` : `${days} Days Net Change`}
                     </div>
                     <div className="card-value" style={{ color: netChange >= 0 ? 'var(--accent-color)' : 'var(--danger-color)' }}>
                         {netChange > 0 ? '+' : ''}{netChange.toLocaleString()}
