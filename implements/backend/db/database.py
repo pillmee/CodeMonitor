@@ -21,6 +21,7 @@ class DatabaseConnection:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
                     path TEXT NOT NULL,
+                    include_path TEXT,
                     status TEXT DEFAULT 'idle',
                     last_scanned_at DATETIME,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP

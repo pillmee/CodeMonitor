@@ -7,13 +7,13 @@ class RepositoryManager:
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
-    def add_repository(self, name: str, path: str) -> int:
+    def add_repository(self, name: str, path: str, include_path: Optional[str] = None) -> int:
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO repositories (name, path) VALUES (?, ?)", 
-                    (name, path)
+                    "INSERT INTO repositories (name, path, include_path) VALUES (?, ?, ?)", 
+                    (name, path, include_path)
                 )
                 conn.commit()
                 return cursor.lastrowid

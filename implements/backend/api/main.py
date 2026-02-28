@@ -44,6 +44,7 @@ def get_settings_manager():
 class RepoCreate(BaseModel):
     name: str
     path: str
+    include_path: Optional[str] = None
 
 class SettingsUpdate(BaseModel):
     key: str
@@ -66,11 +67,11 @@ def add_repository(
     if not os.path.exists(os.path.join(repo.path, ".git")):
         raise HTTPException(status_code=400, detail="Provided path is not a valid Git repository.")
 
-    repo_id = repo_mgr.add_repository(repo.name, repo.path)
+    repo_id = repo_mgr.add_repository(repo.name, repo.path, repo.include_path)
     
     # 워커에 작업 위임 (백그라운드 스레드에서 시작)
     # 실제로는 BackgroundTasks를 써도 되지만 worker 내부에서 스레드 관리 중
-    task_id = worker.start_backfill(repo_id, repo.path)
+    task_id = worker.start_backfill(repo_id, repo.path, repo.include_path)
     
     return {
         "message": "Repository added and backfill started.",

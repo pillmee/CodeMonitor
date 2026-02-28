@@ -9,8 +9,9 @@ class GitAnalyzer:
     대규모 저장소 지원을 위해 subprocess.Popen과 제너레이터를 사용합니다.
     """
 
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, include_path: Optional[str] = None):
         self.repo_path = repo_path
+        self.include_path = include_path
 
     def get_commits_generator(self) -> Iterator[Dict]:
         """
@@ -23,6 +24,9 @@ class GitAnalyzer:
             "--numstat", 
             "--pretty=format:commit:%H author_date:%ai"
         ]
+        
+        if self.include_path:
+            cmd.extend(["--", self.include_path])
 
         process = subprocess.Popen(
             cmd, 
@@ -94,6 +98,9 @@ class GitAnalyzer:
         두 커밋 사이의 변경 사항(증감)을 계산합니다.
         """
         cmd = ["git", "diff", "--numstat", f"{base_commit}..{target_commit}"]
+        if self.include_path:
+            cmd.extend(["--", self.include_path])
+        
         result = subprocess.run(
             cmd,
             cwd=self.repo_path,
