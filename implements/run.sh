@@ -30,17 +30,19 @@ FRONTEND_PORT=5173
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --backend-port)
+        -b|--bp|--backend-port)
             BACKEND_PORT="$2"
             shift 2
             ;;
-        --frontend-port)
+        -f|--fp|--frontend-port)
             FRONTEND_PORT="$2"
             shift 2
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: ./run.sh [--backend-port PORT] [--frontend-port PORT]"
+            echo "Usage: ./run.sh [-b PORT] [-f PORT]"
+            echo "  -b, --bp, --backend-port   Set backend port (default: 8000)"
+            echo "  -f, --fp, --frontend-port  Set frontend port (default: 5173)"
             exit 1
             ;;
     esac
