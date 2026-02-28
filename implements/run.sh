@@ -28,11 +28,15 @@ trap cleanup SIGINT SIGTERM
 
 echo "Starting CodeMonitor Backend (FastAPI)..."
 source venv/bin/activate
-# Start backend in the background using python module execution to avoid relative path issues
-cd backend
-python3 api/main.py &
-BACKEND_PID=$!
-cd ..
+# Start backend in the background
+# Use absolute-like path or stay in backend dir to ensure visibility
+(
+    cd backend || exit
+    python3 api/main.py &
+    echo $! > ../.backend.pid
+)
+BACKEND_PID=$(cat .backend.pid 2>/dev/null)
+rm .backend.pid 2>/dev/null
 
 echo "Starting CodeMonitor Frontend (Vite)..."
 if [ -d "frontend" ]; then

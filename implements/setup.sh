@@ -6,14 +6,28 @@
 
 echo "Starting CodeMonitor setup..."
 
-# 1. Install system dependencies (MacOS assumed)
+# 1. Install system dependencies
 echo "[1/4] Checking system dependencies..."
+
+OS_TYPE="$(uname)"
 if ! command -v cloc &> /dev/null; then
-    echo "cloc could not be found. Attempting to install via Homebrew..."
-    if command -v brew &> /dev/null; then
-        brew install cloc
+    echo "cloc could not be found. Attempting to install..."
+    if [ "$OS_TYPE" == "Darwin" ]; then
+        if command -v brew &> /dev/null; then
+            brew install cloc
+        else
+            echo "Error: Homebrew not found. Please install Homebrew or cloc manually."
+            exit 1
+        fi
+    elif [ "$OS_TYPE" == "Linux" ]; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y cloc
+        else
+            echo "Error: apt-get not found. Please install cloc manually for your Linux distribution."
+            exit 1
+        fi
     else
-        echo "Error: Homebrew not found. Please install cloc manually (e.g., sudo apt install cloc on Linux)."
+        echo "Error: Unsupported OS ($OS_TYPE). Please install cloc manually."
         exit 1
     fi
 else
