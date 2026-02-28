@@ -35,13 +35,14 @@ class BackfillWorker:
         with self._lock:
             return self._tasks.get(task_id)
 
-    def start_backfill(self, repo_id: int, repo_path: str) -> str:
+    def start_backfill(self, repo_id: int, repo_path: str, include_path: Optional[str] = None) -> str:
         task_id = str(uuid.uuid4())
         
         with self._lock:
             self._tasks[task_id] = {
                 "task_id": task_id,
                 "repo_id": repo_id,
+                "include_path": include_path,
                 "status": TaskState.PENDING,
                 "progress_commits": 0,
                 "total_commits": 0, # 전체 개수를 미리 알기 어려우므로 진행 중 업데이트
@@ -51,7 +52,7 @@ class BackfillWorker:
 
         thread = threading.Thread(
             target=self._run_backfill_process,
-            args=(task_id, repo_id, repo_path),
+            args=(task_id, repo_id, repo_path, include_path),
             daemon=True
         )
         thread.start()
