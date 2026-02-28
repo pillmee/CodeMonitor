@@ -5,7 +5,8 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import AddRepoModal from './components/AddRepoModal';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+// 현재 페이지의 호스트네임을 기반으로 API 주소 동적 생성 (포트는 백엔드 기본 포트 8000 사용)
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 function App() {
   const [repositories, setRepositories] = useState([]);
