@@ -249,6 +249,30 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                 color: '#FFFFFF',
                 font: { size: 16 }
             },
+            tooltip: {
+                callbacks: {
+                    label: function (context) {
+                        const label = context.dataset.label || '';
+                        const currentVal = context.parsed.y;
+                        let text = `${label}: ${currentVal.toLocaleString()}`;
+
+                        if (context.dataIndex > 0) {
+                            const rawPrev = context.dataset.data[context.dataIndex - 1];
+                            const prevVal = typeof rawPrev === 'object' && rawPrev !== null ? rawPrev.y : rawPrev;
+                            const diff = currentVal - prevVal;
+
+                            if (diff > 0) {
+                                text += ` (▲ +${diff.toLocaleString()})`;
+                            } else if (diff < 0) {
+                                text += ` (▼ ${diff.toLocaleString()})`;
+                            } else {
+                                text += ` (-)`;
+                            }
+                        }
+                        return text;
+                    }
+                }
+            },
             decimation: {
                 enabled: true,
                 algorithm: 'lttb',
