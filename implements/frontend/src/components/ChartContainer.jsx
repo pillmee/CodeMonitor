@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
+import { FiZoomIn, FiZoomOut, FiArrowLeft, FiArrowRight, FiRefreshCcw } from 'react-icons/fi';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
 ChartJS.register(
@@ -363,6 +364,84 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         }
     };
 
+    const handleZoom = (direction) => {
+        if (!chartRef.current) return;
+        const chart = chartRef.current;
+        const xScale = chart.scales.x;
+        const currentRange = xScale.max - xScale.min;
+        const center = xScale.min + currentRange / 2;
+
+        // 방향에 따라 20% 범위 확대(in) 혹은 축소(out)
+        const factor = direction === 'in' ? 0.8 : 1.2;
+        let newRange = currentRange * factor;
+
+        // Limiting limits: min 7 days, max = selected timeRange width
+        const minRange = 7 * 24 * 60 * 60 * 1000;
+        if (newRange < minRange) newRange = minRange;
+        if (newRange > currentMaxRange) newRange = currentMaxRange;
+
+        let newMin = center - newRange / 2;
+        let newMax = center + newRange / 2;
+
+        const now = new Date().getTime();
+        // Shift if it exceeds future bound
+        if (newMax > now) {
+            newMax = now;
+            newMin = Math.max(MIN_DATE, newMax - newRange);
+        }
+        // Shift if it exceeds past bound
+        if (newMin < MIN_DATE) {
+            newMin = MIN_DATE;
+            newMax = Math.min(now, newMin + newRange);
+        }
+
+        chart.options.scales.x.min = newMin;
+        chart.options.scales.x.max = newMax;
+        updateScaleUnit(chart, true);
+        chart.update('none');
+        setInternalRange({ min: newMin, max: newMax });
+    };
+
+    const handlePan = (direction) => {
+        if (!chartRef.current) return;
+        const chart = chartRef.current;
+        const xScale = chart.scales.x;
+        const currentRange = xScale.max - xScale.min;
+
+        // 이동량: 현재 보이는 범위의 30%
+        const shiftAmount = currentRange * 0.3;
+        const timeShift = direction === 'left' ? -shiftAmount : shiftAmount;
+
+        let newMin = xScale.min + timeShift;
+        let newMax = xScale.max + timeShift;
+
+        const now = new Date().getTime();
+        if (newMax > now) {
+            newMax = now;
+            newMin = newMax - currentRange;
+        }
+        if (newMin < MIN_DATE) {
+            newMin = MIN_DATE;
+            newMax = newMin + currentRange;
+        }
+
+        chart.options.scales.x.min = newMin;
+        chart.options.scales.x.max = newMax;
+        updateScaleUnit(chart, true);
+        chart.update('none');
+        setInternalRange({ min: newMin, max: newMax });
+    };
+
+    const handleReset = () => {
+        if (!chartRef.current || !timeRange) return;
+        const chart = chartRef.current;
+        chart.options.scales.x.min = timeRange.min;
+        chart.options.scales.x.max = timeRange.max;
+        updateScaleUnit(chart, true);
+        chart.update('none');
+        setInternalRange({ min: timeRange.min, max: timeRange.max });
+    };
+
     return (
         <div
             ref={containerRef}
@@ -371,8 +450,28 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            style={{ cursor: dragData.current.isDragging ? 'grabbing' : 'grab' }}
+            style={{ cursor: dragData.current.isDragging ? 'grabbing' : 'grab', position: 'relative' }}
         >
+            <div className="chart-toolbar">
+                <button className="chart-toolbar-btn" onClick={() => handlePan('left')} title="Pan Left">
+                    <FiArrowLeft />
+                </button>
+                <button className="chart-toolbar-btn" onClick={() => handlePan('right')} title="Pan Right">
+                    <FiArrowRight />
+                </button>
+                <div className="chart-toolbar-divider" />
+                <button className="chart-toolbar-btn" onClick={() => handleZoom('in')} title="Zoom In">
+                    <FiZoomIn />
+                </button>
+                <button className="chart-toolbar-btn" onClick={() => handleZoom('out')} title="Zoom Out">
+                    <FiZoomOut />
+                </button>
+                <div className="chart-toolbar-divider" />
+                <button className="chart-toolbar-btn" onClick={handleReset} title="Reset View">
+                    <FiRefreshCcw />
+                </button>
+            </div>
+
             <div style={{ flex: 1, position: 'relative' }}>
                 <Line
                     ref={chartRef}
