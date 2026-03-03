@@ -108,6 +108,21 @@ class HistoryManager:
             cursor.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_last_history_record(self, repo_id: int) -> Optional[Dict[str, Any]]:
+        """해당 저장소의 가장 최근(마지막) 히스토리 레코드를 반환합니다."""
+        query = """
+            SELECT commit_hash, total_loc, timestamp 
+            FROM history 
+            WHERE repo_id = ? 
+            ORDER BY timestamp DESC, id DESC 
+            LIMIT 1
+        """
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (repo_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
 class SettingsManager:
     def __init__(self, db: DatabaseConnection):
         self.db = db

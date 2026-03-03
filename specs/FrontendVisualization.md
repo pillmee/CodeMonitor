@@ -84,14 +84,18 @@
 - **Add Repo Modern Modal**: 로컬 경로 입력 및 별칭 설정.
 - **Task Progress Bar**: 백필(Backfill) 진행 상황을 애니메이션으로 표시.
 
-### 3.7. 브라우저 설정 보존 (Persistence)
 - **localStorage 활용**: 다음 설정값들을 브라우저 로컬 스토리지에 저장하여 새로고침이나 재방문 시에도 유지함.
     - `cm_view_mode`: 그래프 모드 (`all` 또는 `selected`)
     - `cm_selected_repos`: 선택된 저장소 ID 목록 (JSON 배열)
     - `cm_days`: 선택된 Time Range (일 수)
     - `cm_chart_range`: 사용자가 직접 조정한 차트의 줌/팬 구간 (`{min, max}`)
-- **초기 로드 로직**: 앱 초기화 시 스토리지에서 값을 읽어 상태를 설정함.
+- **서버 데이터 우선**: 저장소 목록(이름, 경로, 상태 등)은 항상 서버(DB)를 기준으로 하며, 브라우저에는 사용자의 '선택 상태'만 저장함. 앱 로드 시 서버 목록에 없는 ID가 스토리지에 있다면 자동으로 필터링함.
 - **예외 처리**: `Time Range` 드롭다운을 통해 범위를 명시적으로 변경할 경우, 저장된 `cm_chart_range`보다 드롭다운 설정을 우선하여 차트 윈도우를 새 범위로 강제 리셋함.
+
+### 3.8. 저장소 동기화 (Synchronization)
+- **자정 자동 동기화**: 백엔드에 내장된 `MidnightScheduler`가 매일 **00:00(자정)**에 모든 저장소에 대해 `git pull` 및 증분 분석 수행.
+- **수동 즉시 동기화**: 사이드바의 저장소 목록에서 **Sync(새로고침) 버튼**을 클릭하여 즉시 동기화를 트리거할 수 있음. 
+- **증분 분석**: 전체 히스토리를 다시 스캔하는 대신, 마지막 분석 시점의 커밋 해시 이후의 변경분만 추적하여 DB에 반영함.
 
 ## 4. 기술 스택 (Technical Stack)
 - **Bundler**: Vite
@@ -99,6 +103,10 @@
 - **Styling**: Vanilla CSS (CSS Variables 활용)
 - **Chart Library**: `Chart.js` + `chartjs-plugin-zoom` + `chartjs-adapter-date-fns` + `chartjs-plugin-decimation`
 - **API Client**: `Axios` 또는 `Fetch API`
+
+### 4.2. 네트워크 및 접속 (Network Access)
+- **Vite API Proxy**: 외부 네트워크(공유기 등)에서 접속 시 백엔드 포트(8000)를 별도로 노출하지 않아도 되도록, 프론트엔드 포트(5173)를 통한 API 프록시 기능을 제공함.
+- **상대 경로 지원**: 프론트엔드에서는 절대 주소가 아닌 상대 경로(`/api`)를 사용하여 요청을 전송하며, 이는 Vite 설정에 의해 실제 백엔드 주소로 라우팅됨.
 
 ## 5. 데이터 패칭 전략 (Data Fetching)
 - **Initial Load**: 저장소 목록 및 설정값 조회. 최초 진입 시 그래프 가시 범위(Window)를 **현재일 기준 최근 7일(예: 22일~28일)**로 고정하여 일주일치 흐름을 한눈에 보여줌. (데이터가 없는 날짜도 포함하여 윈도우 유지)

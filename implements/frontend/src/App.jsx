@@ -5,8 +5,9 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import AddRepoModal from './components/AddRepoModal';
 
-// 현재 페이지의 호스트네임을 기반으로 API 주소 동적 생성 (포트는 백엔드 기본 포트 8000 사용)
-const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+// 현재 페이지의 호스트네임을 기반으로 API 주소 동적 생성
+// 프록시 설정을 위해 기본값을 '/api'로 변경하여 같은 Origin으로 요청을 보내도록 함
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 function App() {
   const [repositories, setRepositories] = useState([]);
@@ -28,7 +29,15 @@ function App() {
   const fetchRepositories = async () => {
     try {
       const res = await axios.get(`${API_BASE}/repos`);
-      setRepositories(res.data.repositories || []);
+      const repos = res.data.repositories || [];
+      setRepositories(repos);
+
+      // 서버에서 가져온 목록에 없는 ID가 브라우저에 저장되어 있다면 필터링 (동기화)
+      setSelectedRepoIds(prev => {
+        const repoIds = repos.map(r => r.id);
+        const filtered = prev.filter(id => repoIds.includes(id));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
     } catch (err) {
       console.error('Failed to fetch repos', err);
     } finally {
@@ -87,6 +96,17 @@ function App() {
     }
   };
 
+  const handleSyncRepo = async (repoId) => {
+    try {
+      await axios.post(`${API_BASE}/repos/${repoId}/sync`);
+      alert('Sync started in the background.');
+      // 상태 업데이트를 위해 목록 리프레시 (optional, but good for status reflected)
+      fetchRepositories();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error starting sync');
+    }
+  };
+
   return (
     <div className="app-container">
       <Sidebar
@@ -97,6 +117,7 @@ function App() {
         onToggleRepo={handleToggleRepo}
         onAddClick={() => setIsModalOpen(true)}
         onDeleteRepo={handleDeleteRepo}
+        onSyncRepo={handleSyncRepo}
       />
 
       <div className="main-content">

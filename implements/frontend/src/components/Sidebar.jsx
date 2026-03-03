@@ -1,7 +1,7 @@
 import React from 'react';
-import { FiPlus, FiBox, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiBox, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 
-const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggleRepo, onAddClick, onDeleteRepo }) => {
+const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggleRepo, onAddClick, onDeleteRepo, onSyncRepo }) => {
     return (
         <div className="sidebar">
             <div className="sidebar-header">
@@ -43,32 +43,28 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                             <span className={`status-dot ${repo.status}`}></span>
                             {repo.status === 'backfilling' ? 'Analyzing...' : repo.status}
                         </div>
-                        <button
-                            className="delete-repo-btn"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteRepo(repo.id);
-                            }}
-                            title="Delete Repository"
-                            style={{
-                                position: 'absolute',
-                                right: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-dim)',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '4px',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <FiTrash2 size={14} />
-                        </button>
+                        <div className="repo-actions">
+                            <button
+                                className="action-repo-btn sync"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSyncRepo(repo.id);
+                                }}
+                                title="Sync Now"
+                            >
+                                <FiRefreshCw size={13} />
+                            </button>
+                            <button
+                                className="action-repo-btn delete"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteRepo(repo.id);
+                                }}
+                                title="Delete Repository"
+                            >
+                                <FiTrash2 size={13} />
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>

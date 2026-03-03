@@ -128,12 +128,116 @@ class BackfillWorker:
             except Exception:
                 pass
 
-# 전역 워커 인스턴스 (API 서버 실행 시 하나만 유지)
-# db_path는 실제 환경에 맞게 초기화 시 설정해야 함
+    def start_sync(self, repo_id: int, repo_path: str, include_path: Optional[str] = None):
+        """저장소의 증분 업데이트(Sync) 시작"""
+        thread = threading.Thread(
+            target=self._run_sync_process,
+            args=(repo_id, repo_path, include_path),
+            daemon=True
+        )
+        thread.start()
+
+    def _run_sync_process(self, repo_id: int, repo_path: str, include_path: Optional[str] = None):
+        try:
+            db = DatabaseConnection(self.db_path)
+            repo_manager = RepositoryManager(db)
+            history_manager = HistoryManager(db)
+            
+            analyzer = GitAnalyzer(repo_path, include_path)
+            
+            # 1. Git Pull
+            if not analyzer.pull():
+                print(f"Sync Failed: git pull failed for repo {repo_id}")
+                return
+
+            # 2. 마지막 레코드 가져오기
+            last_record = history_manager.get_last_history_record(repo_id)
+            if not last_record:
+                # 레코드가 없으면 백필부터 시작하도록 안내하거나 무시
+                print(f"Sync Skipped: No history found for repo {repo_id}")
+                return
+
+            last_hash = last_record['commit_hash']
+            current_loc = last_record['total_loc']
+
+            # 3. 마지막 해시 이후의 커밋만 분석
+            batch_records = []
+            processed_commits = 0
+            
+            # get_commits_generator에 since_hash 전달 (incremental)
+            for commit in analyzer.get_commits_generator(since_hash=last_hash):
+                current_loc += commit['insertions']
+                current_loc -= commit['deletions']
+                current_loc = max(0, current_loc)
+
+                batch_records.append({
+                    "timestamp": commit['date'],
+                    "commit_hash": commit['hash'],
+                    "total_loc": current_loc
+                })
+                processed_commits += 1
+
+            if batch_records:
+                history_manager.add_history_batch(repo_id, batch_records)
+                print(f"Sync Completed: {processed_commits} new commits for repo {repo_id}")
+            else:
+                print(f"Sync: No new commits since {last_hash} for repo {repo_id}")
+
+            repo_manager.update_last_scanned(repo_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        except Exception as e:
+            print(f"Sync Worker Error [repo {repo_id}]: {e}")
+
+class MidnightScheduler:
+    """매일 밤 12시에 모든 저장소를 동기화하는 스케줄러"""
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._stop_event = threading.Event()
+
+    def start(self):
+        thread = threading.Thread(target=self._run_loop, daemon=True)
+        thread.start()
+        print("Midnight Scheduler Started.")
+
+    def _run_loop(self):
+        while not self._stop_event.is_set():
+            now = datetime.now()
+            # 매일 00:00에 실행
+            if now.hour == 0 and now.minute == 0:
+                print(f"[{now}] Midnight Sync Started...")
+                self._execute_sync()
+                # 61초 대기하여 같은 분에 중복 실행 방지
+                time.sleep(61)
+            else:
+                # 30초마다 체크
+                time.sleep(30)
+
+    def _execute_sync(self):
+        try:
+            db = DatabaseConnection(self.db_path)
+            repo_manager = RepositoryManager(db)
+            worker = get_worker(self.db_path)
+            
+            repos = repo_manager.get_all_repositories()
+            for repo in repos:
+                print(f"Syncing {repo['name']} (Path: {repo['path']})...")
+                worker.start_sync(repo['id'], repo['path'], repo['include_path'])
+        except Exception as e:
+            print(f"Scheduler Execution Error: {e}")
+
+# 전역 워커와 스케줄러 인스턴스
 _worker_instance = None
+_scheduler_instance = None
 
 def get_worker(db_path: str = "codemonitor.db") -> BackfillWorker:
     global _worker_instance
     if _worker_instance is None:
         _worker_instance = BackfillWorker(db_path)
     return _worker_instance
+
+def start_midnight_scheduler(db_path: str = "codemonitor.db"):
+    global _scheduler_instance
+    if _scheduler_instance is None:
+        _scheduler_instance = MidnightScheduler(db_path)
+        _scheduler_instance.start()
+    return _scheduler_instance

@@ -12,9 +12,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from db.database import DatabaseConnection
 from db.managers import RepositoryManager, HistoryManager, SettingsManager
-from core.worker import get_worker
+from core.worker import get_worker, start_midnight_scheduler
 
 app = FastAPI(title="CodeMonitor API")
+
+@app.on_event("startup")
+async def startup_event():
+    # 백그라운드 스케줄러 시작
+    start_midnight_scheduler(DB_PATH)
+    print(f"[{datetime.now()}] Background Scheduler started.")
 
 # CORS 설정 (Vite 프론트엔드 연동)
 app.add_middleware(
@@ -87,6 +93,23 @@ def delete_repository(
     """저장소 및 히스토리 삭제"""
     repo_mgr.delete_repository(repo_id)
     return {"message": "Repository and its history deleted."}
+
+@app.post("/api/repos/{repo_id}/sync")
+def sync_repository(
+    repo_id: int,
+    repo_mgr: RepositoryManager = Depends(get_repo_manager)
+):
+    """특정 저장소의 즉시 동기화(git pull + incremental sync) 시작"""
+    repos = repo_mgr.get_all_repositories()
+    repo = next((r for r in repos if r['id'] == repo_id), None)
+    
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # 워커에 동기화 작업 위임
+    worker.start_sync(repo_id, repo['path'], repo['include_path'])
+    
+    return {"message": "Sync started.", "repo_id": repo_id}
 
 @app.get("/api/stats")
 def get_statistics(

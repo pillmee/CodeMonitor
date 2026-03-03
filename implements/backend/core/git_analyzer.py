@@ -13,17 +13,26 @@ class GitAnalyzer:
         self.repo_path = repo_path
         self.include_path = include_path
 
-    def get_commits_generator(self) -> Iterator[Dict]:
+    def get_commits_generator(self, since_hash: Optional[str] = None) -> Iterator[Dict]:
         """
-        저장소의 첫 커밋부터 최신 커밋까지 순차적으로 커밋 정보를 추출하는 제너레이터.
-        수행 명령어: git log --reverse --numstat --pretty=format:"commit:%H author_date:%ai"
+        저장소의 커밋 정보를 추출하는 제너레이터.
+        since_hash가 있으면 해당 커밋 이후부터(exclusive), 없으면 처음부터 최신 커밋까지 추출.
+        수행 명령어: git log [since_hash..HEAD] --reverse --numstat --pretty=format:"commit:%H author_date:%ai"
         """
-        cmd = [
-            "git", "log", 
-            "--reverse", 
+        range_spec = f"{since_hash}..HEAD" if since_hash else "--reverse"
+        
+        cmd = ["git", "log"]
+        
+        if since_hash:
+            cmd.append(range_spec)
+            cmd.append("--reverse") # range_spec이 있어도 순차 처리를 위해 필요
+        else:
+            cmd.append("--reverse")
+            
+        cmd.extend([
             "--numstat", 
             "--pretty=format:commit:%H author_date:%ai"
-        ]
+        ])
         
         if self.include_path:
             cmd.extend(["--", self.include_path])
@@ -119,3 +128,18 @@ class GitAnalyzer:
                 summary["deletions"] += deleted
         
         return summary
+
+    def pull(self) -> bool:
+        """원격 저장소로부터 최신 코드를 풀(pull)합니다."""
+        try:
+            subprocess.run(
+                ["git", "pull"],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Git Pull Error in {self.repo_path}: {e.stderr}")
+            return False
