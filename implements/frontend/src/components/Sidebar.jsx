@@ -39,6 +39,14 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                             />
                             {repo.name}
                         </div>
+                        <div className="repo-path-info">
+                            <span className="repo-path" title={repo.path}>{repo.path}</span>
+                            {repo.include_path && (
+                                <span className="sub-path" title={`Sub-directory: ${repo.include_path}`}>
+                                    /{repo.include_path}
+                                </span>
+                            )}
+                        </div>
                         <div className="repo-status">
                             <span className={`status-dot ${repo.status}`}></span>
                             {repo.status === 'backfilling' ? 'Analyzing...' : repo.status}
