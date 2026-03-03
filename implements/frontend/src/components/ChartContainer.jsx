@@ -48,7 +48,8 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         }
         return { min: timeRange?.min, max: timeRange?.max };
     });
-    const dragData = React.useRef({ isDragging: false, lastX: 0 });
+    const [internalYRange, setInternalYRange] = React.useState({ min: undefined, max: undefined });
+    const dragData = React.useRef({ isDragging: false, lastX: 0, lastY: 0 });
 
     // Max Range는 선택한 Time Range에 맞춤 (선택 범위 이상 줌 아웃 불가)
     const currentMaxRange = React.useMemo(() => {
@@ -97,7 +98,7 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
     };
 
     const handleMouseDown = (e) => {
-        dragData.current = { isDragging: true, lastX: e.clientX };
+        dragData.current = { isDragging: true, lastX: e.clientX, lastY: e.clientY };
     };
 
     const handleMouseMove = (e) => {
@@ -105,39 +106,37 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
 
         const chart = chartRef.current;
         const deltaX = e.clientX - dragData.current.lastX;
+        const deltaY = e.clientY - dragData.current.lastY;
         dragData.current.lastX = e.clientX;
+        dragData.current.lastY = e.clientY;
 
-        // Panning Speed / Damping factor: 0.2
-        const dampingFactor = 0.2;
         const now = new Date().getTime();
-
         const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+
+        // X-axis Panning: Natural movement (graph follows mouse)
         const msPerPixel = (xScale.max - xScale.min) / xScale.width;
+        let timeShift = -deltaX * msPerPixel;
 
-        // Natural Panning Fix: 
-        // 마우스 왼쪽 이동(deltaX < 0) 시 좌측(과거) 시점(값 감소)으로 이동
-        let timeShift = deltaX * msPerPixel * dampingFactor;
-
-        // Future Date Restriction:
-        // 새로운 max값이 현재 시간을 넘지 않도록 제한
         if (xScale.max + timeShift > now) {
             timeShift = now - xScale.max;
         }
-
-        // Past Date Restriction:
-        // 새로운 min값이 2000-01-01 이전으로 가지 않도록 제한
         if (xScale.min + timeShift < MIN_DATE) {
             timeShift = MIN_DATE - xScale.min;
         }
 
-        // 고성능을 위해 직접 옵션 수정 후 업데이트
         chart.options.scales.x.min = xScale.min + timeShift;
         chart.options.scales.x.max = xScale.max + timeShift;
 
-        // 조작 중에는 silent하게 단위 체크 (옵션만 변경)
-        updateScaleUnit(chart, true);
+        // Y-axis Panning: Natural movement (graph follows mouse)
+        const valPerPixel = (yScale.max - yScale.min) / yScale.height;
+        let yShift = deltaY * valPerPixel;
 
-        chart.update('none'); // 애니메이션 없이 즉시 렌더링
+        chart.options.scales.y.min = yScale.min + yShift;
+        chart.options.scales.y.max = yScale.max + yShift;
+
+        updateScaleUnit(chart, true);
+        chart.update('none');
     };
 
     const handleMouseUp = () => {
@@ -146,6 +145,10 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
             setInternalRange({
                 min: chart.options.scales.x.min,
                 max: chart.options.scales.x.max
+            });
+            setInternalYRange({
+                min: chart.options.scales.y.min,
+                max: chart.options.scales.y.max
             });
         }
         dragData.current.isDragging = false;
@@ -198,7 +201,6 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
     };
 
     // Native DOM listener로 wheel 이벤트 등록 (passive: false 필수)
-    // React의 onWheel은 passive 리스너로 등록되어 preventDefault()가 무시됨
     React.useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -281,20 +283,20 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
             zoom: {
                 limits: {
                     x: {
-                        minRange: 7 * 24 * 60 * 60 * 1000, // 최소 확대 범위를 7일로 제한
-                        maxRange: currentMaxRange, // 선택한 Time Range 이상 줌 아웃 불가
-                        min: MIN_DATE, // 좌측 한계: 2000-01-01
-                        max: new Date().getTime() // 최우측(미래) 제한
+                        minRange: 7 * 24 * 60 * 60 * 1000,
+                        maxRange: currentMaxRange,
+                        min: MIN_DATE,
+                        max: new Date().getTime()
                     },
                 },
                 pan: {
-                    enabled: false, // 커스텀 팬 구현을 위해 비활성화
+                    enabled: false,
                 },
                 zoom: {
                     wheel: {
                         enabled: true,
-                        speed: 0.1, // 반응성 향상을 위해 0.02에서 0.1로 상향
-                        modifierKey: 'ctrl', // 트랙패드 좌우 스와이프 시 줌 오작동 방지 (Pinch 줌은 자동 Ctrl 인식)
+                        speed: 0.1,
+                        modifierKey: 'ctrl',
                     },
                     pinch: {
                         enabled: true
@@ -307,10 +309,8 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                         const { min, max } = chart.scales.x;
                         const minRange = 7 * 24 * 60 * 60 * 1000;
                         if (max - min < minRange) {
-                            // 혹시라도 한계를 넘으려 할 경우 정지
                             return false;
                         }
-                        // 줌 조작 중에도 리렌더링 없이 조용히 단위 업데이트
                         updateScaleUnit(chart, true);
                     },
                     onComplete: ({ chart }) => {
@@ -335,13 +335,13 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                         year: 'yyyy'
                     }
                 },
-                stepSize: 1, // 일 단위일 때 매일 표시되도록 유도
+                stepSize: 1,
                 grid: {
                     color: 'rgba(255, 255, 255, 0.05)'
                 },
                 ticks: {
                     color: '#A0A0A0',
-                    autoSkip: (internalRange.max - internalRange.min) >= (30 * 24 * 60 * 60 * 1000), // 30일 미만이면 모든 날짜 표시
+                    autoSkip: (internalRange.max - internalRange.min) >= (30 * 24 * 60 * 60 * 1000),
                     minRotation: 45,
                     maxRotation: 45,
                     callback: function (value, index, ticks_list) {
@@ -353,7 +353,6 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                         const month = date.getMonth();
                         const day = date.getDate();
 
-                        // 이전 눈금과의 연도 비교
                         let isNewYear = false;
                         if (index > 0 && ticks_list[index - 1]) {
                             const prevDate = new Date(ticks_list[index - 1].value);
@@ -362,14 +361,12 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                             }
                         }
 
-                        // 첫 번째 눈금이거나 새로운 해가 시작되는 눈금인 경우 연도 포함 표시
                         if (index === 0 || isNewYear) {
                             const yyyy = year;
                             const mm = String(month + 1).padStart(2, '0');
                             const dd = String(day).padStart(2, '0');
                             return `${yyyy}/${mm}/${dd}`;
                         } else {
-                            // 그 외에는 MM/dd 형식으로 표시
                             const mm = String(month + 1).padStart(2, '0');
                             const dd = String(day).padStart(2, '0');
                             return `${mm}/${dd}`;
@@ -378,6 +375,8 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                 }
             },
             y: {
+                min: internalYRange.min,
+                max: internalYRange.max,
                 grid: {
                     color: 'rgba(255, 255, 255, 0.05)'
                 },
@@ -395,11 +394,9 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         const currentRange = xScale.max - xScale.min;
         const center = xScale.min + currentRange / 2;
 
-        // 방향에 따라 20% 범위 확대(in) 혹은 축소(out)
         const factor = direction === 'in' ? 0.8 : 1.2;
         let newRange = currentRange * factor;
 
-        // Limiting limits: min 7 days, max = selected timeRange width
         const minRange = 7 * 24 * 60 * 60 * 1000;
         if (newRange < minRange) newRange = minRange;
         if (newRange > currentMaxRange) newRange = currentMaxRange;
@@ -408,12 +405,10 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         let newMax = center + newRange / 2;
 
         const now = new Date().getTime();
-        // Shift if it exceeds future bound
         if (newMax > now) {
             newMax = now;
             newMin = Math.max(MIN_DATE, newMax - newRange);
         }
-        // Shift if it exceeds past bound
         if (newMin < MIN_DATE) {
             newMin = MIN_DATE;
             newMax = Math.min(now, newMin + newRange);
@@ -432,7 +427,6 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         const xScale = chart.scales.x;
         const currentRange = xScale.max - xScale.min;
 
-        // 이동량: 현재 보이는 범위의 30%
         const shiftAmount = currentRange * 0.3;
         const timeShift = direction === 'left' ? -shiftAmount : shiftAmount;
 
@@ -461,9 +455,12 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
         const chart = chartRef.current;
         chart.options.scales.x.min = timeRange.min;
         chart.options.scales.x.max = timeRange.max;
+        chart.options.scales.y.min = undefined;
+        chart.options.scales.y.max = undefined;
         updateScaleUnit(chart, true);
         chart.update('none');
         setInternalRange({ min: timeRange.min, max: timeRange.max });
+        setInternalYRange({ min: undefined, max: undefined });
     };
 
     return (

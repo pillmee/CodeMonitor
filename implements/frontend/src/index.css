@@ -7,7 +7,7 @@
   --accent-color: #00FFcc;
   --accent-hover: #33ffdd;
   --danger-color: #FF4444;
-  
+
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -22,7 +22,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-main);
   background-image: radial-gradient(circle at 15% 50%, rgba(0, 255, 204, 0.05), transparent 25%),
-                    radial-gradient(circle at 85% 30%, rgba(150, 0, 255, 0.05), transparent 25%);
+    radial-gradient(circle at 85% 30%, rgba(150, 0, 255, 0.05), transparent 25%);
   min-height: 100vh;
 }
 
@@ -104,9 +104,19 @@ body {
   height: 8px;
   border-radius: 50%;
 }
-.status-dot.idle { background-color: var(--text-muted); }
-.status-dot.backfilling { background-color: #FFAA00; box-shadow: 0 0 8px #FFAA00; }
-.status-dot.error { background-color: var(--danger-color); }
+
+.status-dot.idle {
+  background-color: var(--text-muted);
+}
+
+.status-dot.backfilling {
+  background-color: #FFAA00;
+  box-shadow: 0 0 8px #FFAA00;
+}
+
+.status-dot.error {
+  background-color: var(--danger-color);
+}
 
 .add-repo-btn {
   margin: 20px;
@@ -148,6 +158,9 @@ body {
   display: flex;
   gap: 20px;
   margin-bottom: 30px;
+  position: relative;
+  z-index: 100;
+  /* Dropdowns inside cards should be above charts */
 }
 
 .card {
@@ -197,7 +210,10 @@ body {
 /* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
   display: flex;
@@ -212,7 +228,7 @@ body {
   border-radius: 12px;
   padding: 30px;
   width: 400px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .modal h2 {
@@ -306,4 +322,109 @@ body {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--accent-color);
   color: var(--accent-color);
+}
+
+/* Custom Select Component */
+.custom-select {
+  position: relative;
+  width: 180px;
+  margin-top: 10px;
+  user-select: none;
+}
+
+.select-trigger {
+  padding: 10px 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+.select-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
+.select-trigger .arrow {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+  color: var(--text-muted);
+}
+
+.custom-select.open .select-trigger .arrow {
+  transform: rotate(180deg);
+}
+
+.select-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 5px;
+  background: #1e1e1e;
+  /* Darker background for menu */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  overflow: hidden;
+  max-height: 300px;
+  overflow-y: auto;
+  backdrop-filter: blur(15px);
+  animation: selectFadeIn 0.2s ease;
+}
+
+@keyframes selectFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.select-option {
+  padding: 10px 15px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.select-option:hover {
+  background: rgba(0, 255, 204, 0.1);
+  color: var(--accent-color);
+}
+
+.select-option.selected {
+  background: rgba(0, 255, 204, 0.15);
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+/* Scrollbar styling for custom-select */
+.select-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.select-options::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

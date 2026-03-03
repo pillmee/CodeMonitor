@@ -1,7 +1,49 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { subDays } from 'date-fns';
 import ChartContainer from './ChartContainer';
+
+const CustomSelect = ({ value, onChange, options }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    const selectedOption = options.find(opt => opt.value === value);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className={`custom-select ${isOpen ? 'open' : ''}`} ref={containerRef}>
+            <div className="select-trigger" onClick={() => setIsOpen(!isOpen)}>
+                <span>{selectedOption ? selectedOption.label : 'Select...'}</span>
+                <span className="arrow">▼</span>
+            </div>
+            {isOpen && (
+                <div className="select-options">
+                    {options.map(opt => (
+                        <div
+                            key={opt.value}
+                            className={`select-option ${opt.value === value ? 'selected' : ''}`}
+                            onClick={() => {
+                                onChange(opt.value);
+                                setIsOpen(false);
+                            }}
+                        >
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     const [stats, setStats] = useState([]);          // 차트 표시용 (all→합산, selected→개별)
@@ -141,24 +183,23 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 </div>
                 <div className="card">
                     <div className="card-title">Time Range</div>
-                    <select
-                        className="form-control"
-                        style={{ width: '160px', marginTop: '10px' }}
+                    <CustomSelect
                         value={days}
-                        onChange={(e) => setDays(Number(e.target.value))}
-                    >
-                        <option value={7}>Last 7 Days</option>
-                        <option value={30}>Last 30 Days</option>
-                        <option value={90}>Last 90 Days</option>
-                        <option value={365}>Last 1 Year</option>
-                        <option value={730}>Last 2 Years</option>
-                        <option value={1095}>Last 3 Years</option>
-                        <option value={1825}>Last 5 Years</option>
-                        <option value={2555}>Last 7 Years</option>
-                        <option value={3650}>Last 10 Years</option>
-                        <option value={5475}>Last 15 Years</option>
-                        <option value={7300}>Last 20 Years</option>
-                    </select>
+                        onChange={setDays}
+                        options={[
+                            { value: 7, label: 'Last 7 Days' },
+                            { value: 30, label: 'Last 30 Days' },
+                            { value: 90, label: 'Last 90 Days' },
+                            { value: 365, label: 'Last 1 Year' },
+                            { value: 730, label: 'Last 2 Years' },
+                            { value: 1095, label: 'Last 3 Years' },
+                            { value: 1825, label: 'Last 5 Years' },
+                            { value: 2555, label: 'Last 7 Years' },
+                            { value: 3650, label: 'Last 10 Years' },
+                            { value: 5475, label: 'Last 15 Years' },
+                            { value: 7300, label: 'Last 20 Years' },
+                        ]}
+                    />
                 </div>
             </div>
 
