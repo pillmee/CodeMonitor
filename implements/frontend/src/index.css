@@ -92,28 +92,30 @@ body {
 }
 
 .repo-path-info {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   padding-left: 24px;
 }
 
 .repo-path {
-  opacity: 0.6;
-  max-width: 150px;
+  opacity: 0.5;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sub-path {
   color: var(--accent-color);
   font-weight: 500;
-  opacity: 0.9;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-status {

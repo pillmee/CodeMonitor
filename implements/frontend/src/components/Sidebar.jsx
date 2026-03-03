@@ -40,11 +40,11 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                             {repo.name}
                         </div>
                         <div className="repo-path-info">
-                            <span className="repo-path" title={repo.path}>{repo.path}</span>
+                            <div className="repo-path" title={repo.path}>{repo.path}</div>
                             {repo.include_path && (
-                                <span className="sub-path" title={`Sub-directory: ${repo.include_path}`}>
-                                    /{repo.include_path}
-                                </span>
+                                <div className="sub-path" title={`Sub-directory: ${repo.include_path}`}>
+                                    Include: {repo.include_path}
+                                </div>
                             )}
                         </div>
                         <div className="repo-status">
