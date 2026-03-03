@@ -156,48 +156,47 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
 
     const wheelTimeout = React.useRef(null);
     const handleWheel = (e) => {
-        // Ctrl 키가 눌린 채로 휠/트랙패드 조작 시에는 줌 플러그인이 처리하도록 무시
-        if (e.ctrlKey) return;
         if (!chartRef.current) return;
-
-        // 트랙패드 좌우 스와이프 시 브라우저의 '뒤로 가기/앞으로 가기' 방지
-        e.preventDefault();
 
         const chart = chartRef.current;
         const deltaX = e.deltaX;
-        if (Math.abs(deltaX) < 1) return; // 미세한 움직임 무시
+        const deltaY = e.deltaY;
 
-        // 트랙패드 좌우 스와이프를 이동(Pan)으로 변환
-        const xScale = chart.scales.x;
-        const msPerPixel = (xScale.max - xScale.min) / xScale.width;
+        // 세로 방향 휠 조작이 지배적이면(줌) 브라우저 기본 스크롤과 충돌할 수 있으므로
+        // 차트 위에서는 무조건 preventDefault를 수행하여 줌 전용 영역으로 만듦
+        e.preventDefault();
 
-        // 맥북 트랙패드 방향과 일치시키기 위해 deltaX 사용 (자연스러운 스크롤)
-        let timeShift = deltaX * msPerPixel * 0.8; // 0.8은 감도 조절값
+        // 트랙패드 좌우 스와이프 (Pan) 처리
+        // deltaY가 매우 작고 deltaX가 존재할 때만 Pan으로 간주하거나, 
+        // 줌 플러그인이 deltaY 기반으로 이미 작동하므로 여기서는 deltaX 기반 이동만 보조함
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 1) {
+            const xScale = chart.scales.x;
+            const msPerPixel = (xScale.max - xScale.min) / xScale.width;
+            let timeShift = deltaX * msPerPixel * 0.8;
 
-        const now = new Date().getTime();
-        if (xScale.max + timeShift > now) {
-            timeShift = now - xScale.max;
+            const now = new Date().getTime();
+            if (xScale.max + timeShift > now) {
+                timeShift = now - xScale.max;
+            }
+            if (xScale.min + timeShift < MIN_DATE) {
+                timeShift = MIN_DATE - xScale.min;
+            }
+
+            chart.options.scales.x.min = xScale.min + timeShift;
+            chart.options.scales.x.max = xScale.max + timeShift;
+
+            updateScaleUnit(chart, true);
+            chart.update('none');
+
+            if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
+            wheelTimeout.current = setTimeout(() => {
+                setInternalRange({
+                    min: chart.options.scales.x.min,
+                    max: chart.options.scales.x.max
+                });
+            }, 500);
         }
-
-        // Past Date Restriction: 2000-01-01 이전으로 이동 불가
-        if (xScale.min + timeShift < MIN_DATE) {
-            timeShift = MIN_DATE - xScale.min;
-        }
-
-        chart.options.scales.x.min = xScale.min + timeShift;
-        chart.options.scales.x.max = xScale.max + timeShift;
-
-        updateScaleUnit(chart, true);
-        chart.update('none');
-
-        // 스크롤 중지 후 500ms 뒤에 상태 동기화 (요약 카드 업데이트용)
-        if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
-        wheelTimeout.current = setTimeout(() => {
-            setInternalRange({
-                min: chart.options.scales.x.min,
-                max: chart.options.scales.x.max
-            });
-        }, 500);
+        // deltaY 기반의 줌은 chartjs-plugin-zoom이 자동으로 처리함 (modifierKey가 없으므로)
     };
 
     // Native DOM listener로 wheel 이벤트 등록 (passive: false 필수)
@@ -296,7 +295,7 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                     wheel: {
                         enabled: true,
                         speed: 0.1,
-                        modifierKey: 'ctrl',
+                        // modifierKey: 'ctrl', // Removed to allow zoom without Ctrl
                     },
                     pinch: {
                         enabled: true
