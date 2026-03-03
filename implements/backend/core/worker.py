@@ -143,28 +143,35 @@ class BackfillWorker:
             repo_manager = RepositoryManager(db)
             history_manager = HistoryManager(db)
             
+            # 동기화 시작 상태로 변경
+            repo_manager.update_status(repo_id, "syncing")
+            
             analyzer = GitAnalyzer(repo_path, include_path)
             
             # 1. Git Pull
+            # pull() 내부에 subprocess.run이 있어 즉시 실행됨
             if not analyzer.pull():
                 print(f"Sync Failed: git pull failed for repo {repo_id}")
+                repo_manager.update_status(repo_id, "error")
                 return
 
-            # 2. 마지막 레코드 가져오기
+            # 2. 마지막 레코드 가져오기 (증분 분석용)
             last_record = history_manager.get_last_history_record(repo_id)
+            
             if not last_record:
-                # 레코드가 없으면 백필부터 시작하도록 안내하거나 무시
-                print(f"Sync Skipped: No history found for repo {repo_id}")
+                # 히스토리가 아예 없는 경우: 전체 백필 프로세스로 전환
+                print(f"Sync: No history found, starting full backfill for repo {repo_id}")
+                # task_id가 필요없으므로 내부 루틴 직접 호출 (status는 backfilling으로 변경됨)
+                self._run_backfill_process(f"sync-auto-backfill-{repo_id}", repo_id, repo_path, include_path)
                 return
 
             last_hash = last_record['commit_hash']
             current_loc = last_record['total_loc']
 
-            # 3. 마지막 해시 이후의 커밋만 분석
+            # 3. 마지막 해시 이후의 커밋만 분석 (Incremental Parser)
             batch_records = []
             processed_commits = 0
             
-            # get_commits_generator에 since_hash 전달 (incremental)
             for commit in analyzer.get_commits_generator(since_hash=last_hash):
                 current_loc += commit['insertions']
                 current_loc -= commit['deletions']
@@ -183,10 +190,17 @@ class BackfillWorker:
             else:
                 print(f"Sync: No new commits since {last_hash} for repo {repo_id}")
 
+            # 완료 상태 업데이트
+            repo_manager.update_status(repo_id, "idle")
             repo_manager.update_last_scanned(repo_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         except Exception as e:
             print(f"Sync Worker Error [repo {repo_id}]: {e}")
+            try:
+                db = DatabaseConnection(self.db_path)
+                RepositoryManager(db).update_status(repo_id, "error")
+            except Exception:
+                pass
 
 class MidnightScheduler:
     """매일 밤 12시에 모든 저장소를 동기화하는 스케줄러"""

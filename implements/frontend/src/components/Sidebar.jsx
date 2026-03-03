@@ -49,7 +49,9 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                         </div>
                         <div className="repo-status">
                             <span className={`status-dot ${repo.status}`}></span>
-                            {repo.status === 'backfilling' ? 'Analyzing...' : repo.status}
+                            {repo.status === 'backfilling' ? 'Analyzing...' :
+                                repo.status === 'syncing' ? 'Syncing...' :
+                                    repo.status}
                         </div>
                         <div className="repo-actions">
                             <button
