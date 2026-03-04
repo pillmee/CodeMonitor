@@ -88,34 +88,7 @@ body {
 .repo-name {
   font-weight: 600;
   font-size: 1.1rem;
-  margin-bottom: 2px;
-}
-
-.repo-path-info {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  padding-left: 24px;
-}
-
-.repo-path {
-  opacity: 0.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sub-path {
-  color: var(--accent-color);
-  font-weight: 500;
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-bottom: 8px;
 }
 
 .repo-status {

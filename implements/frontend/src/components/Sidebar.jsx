@@ -28,6 +28,7 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                         className={`repo-item ${viewMode === 'selected' && selectedRepoIds.includes(repo.id) ? 'active' : ''}`}
                         onClick={() => onToggleRepo(repo.id)}
                         style={{ position: 'relative' }}
+                        title={`Path: ${repo.path}${repo.include_path ? ` (Include: ${repo.include_path})` : ''}`}
                     >
                         <div className="repo-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '24px' }}>
                             <input
@@ -38,14 +39,6 @@ const Sidebar = ({ repositories, viewMode, selectedRepoIds, onSelectAll, onToggl
                                 style={{ accentColor: 'var(--accent-color)', cursor: 'pointer' }}
                             />
                             {repo.name}
-                        </div>
-                        <div className="repo-path-info">
-                            <div className="repo-path" title={repo.path}>{repo.path}</div>
-                            {repo.include_path && (
-                                <div className="sub-path" title={`Sub-directory: ${repo.include_path}`}>
-                                    Include: {repo.include_path}
-                                </div>
-                            )}
                         </div>
                         <div className="repo-status">
                             <span className={`status-dot ${repo.status}`}></span>
