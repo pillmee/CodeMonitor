@@ -52,9 +52,43 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         return Number(localStorage.getItem('cm_days')) || 7;
     });
 
+    // --- Comparison Feature States ---
+    const [compStart, setCompStart] = useState('');
+    const [compEnd, setCompEnd] = useState('');
+    const [compStats, setCompStats] = useState({ startLOC: 0, endLOC: 0, delta: 0, percent: 0 });
+
     useEffect(() => {
         localStorage.setItem('cm_days', days);
     }, [days]);
+
+    // Fetch comparison dates from server on mount
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await axios.get(`${apiBase}/settings`);
+                if (res.data.comparison_start) setCompStart(res.data.comparison_start);
+                if (res.data.comparison_end) setCompEnd(res.data.comparison_end);
+            } catch (err) {
+                console.error('Failed to fetch settings', err);
+            }
+        };
+        fetchSettings();
+    }, [apiBase]);
+
+    // Save comparison dates to server when they change
+    const handleCompDateChange = async (key, value) => {
+        if (key === 'start') setCompStart(value);
+        else setCompEnd(value);
+
+        try {
+            await axios.patch(`${apiBase}/settings`, {
+                key: key === 'start' ? 'comparison_start' : 'comparison_end',
+                value: value
+            });
+        } catch (err) {
+            console.error('Failed to save setting', err);
+        }
+    };
 
     const title = viewMode === 'all'
         ? 'All Repositories (Total)'
@@ -141,9 +175,50 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 console.error('Failed to fetch stats', err);
             }
         };
-
         fetchStats();
     }, [viewMode, selectedRepoIds, days, apiBase]);
+
+    // Comparison Calculation Logic
+    useEffect(() => {
+        if (!compStart || !compEnd || rawDatasets.length === 0) return;
+
+        const startDate = new Date(compStart).getTime();
+        const endDate = new Date(compEnd).getTime();
+
+        let startSum = 0;
+        let endSum = 0;
+
+        rawDatasets.forEach(dataset => {
+            if (dataset.data.length === 0) return;
+
+            // Find value at/before start date
+            let startVal = 0;
+            const startIdx = dataset.data.findIndex(p => p.x >= startDate);
+            if (startIdx !== -1) {
+                // 만약 첫 데이터가 시작일 이후라면 첫 데이터 사용, 아니면 시작일 직전 데이터 사용
+                startVal = dataset.data[startIdx].y;
+            } else {
+                startVal = dataset.data[dataset.data.length - 1].y;
+            }
+
+            // Find value at/before end date
+            let endVal = 0;
+            const endIdx = dataset.data.findIndex(p => p.x >= endDate);
+            if (endIdx !== -1) {
+                endVal = dataset.data[endIdx].y;
+            } else {
+                endVal = dataset.data[dataset.data.length - 1].y;
+            }
+
+            startSum += startVal;
+            endSum += endVal;
+        });
+
+        const delta = endSum - startSum;
+        const percent = startSum !== 0 ? (delta / startSum) * 100 : 0;
+
+        setCompStats({ startLOC: startSum, endLOC: endSum, delta, percent });
+    }, [compStart, compEnd, rawDatasets]);
 
     // 통계값은 rawDatasets (개별 저장소)에서 계산 → 정확한 per-repo Net Change 보장
     let totalLOC = 0;
@@ -203,10 +278,53 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 </div>
             </div>
 
+            {/* Comparison Controls */}
+            <div className="comparison-container">
+                <div className="card comparison-card">
+                    <div className="comparison-header">
+                        <div className="card-title">Point Comparison</div>
+                        <div className="comparison-inputs">
+                            <input
+                                type="date"
+                                value={compStart}
+                                onChange={(e) => handleCompDateChange('start', e.target.value)}
+                                className="date-input"
+                            />
+                            <span className="separator">vs</span>
+                            <input
+                                type="date"
+                                value={compEnd}
+                                onChange={(e) => handleCompDateChange('end', e.target.value)}
+                                className="date-input"
+                            />
+                        </div>
+                    </div>
+                    <div className="comparison-results">
+                        <div className="res-item">
+                            <span className="label">Start:</span>
+                            <span className="value">{compStats.startLOC.toLocaleString()}</span>
+                        </div>
+                        <div className="res-item">
+                            <span className="label">End:</span>
+                            <span className="value">{compStats.endLOC.toLocaleString()}</span>
+                        </div>
+                        <div className="res-item divider"></div>
+                        <div className="res-item main">
+                            <span className="label">Diff:</span>
+                            <span className={`value ${compStats.delta >= 0 ? 'plus' : 'minus'}`}>
+                                {compStats.delta >= 0 ? '+' : ''}{compStats.delta.toLocaleString()}
+                                <span className="pct">({compStats.percent.toFixed(2)}%)</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <ChartContainer
                 datasets={stats}
                 title={`${title} LOC Trend`}
                 timeRange={timeRange}
+                comparisonRange={compStart && compEnd ? { start: compStart, end: compEnd } : null}
             />
         </>
     );

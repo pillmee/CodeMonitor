@@ -33,7 +33,7 @@ ChartJS.register(
 // 좌측 패닝/줌 경계: 2000년 1월 1일
 const MIN_DATE = new Date(2000, 0, 1).getTime();
 
-const ChartContainer = ({ datasets, title, timeRange }) => {
+const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
     const chartRef = React.useRef(null);
     const containerRef = React.useRef(null);
     const [scaleUnit, setScaleUnit] = React.useState('day');
@@ -228,6 +228,41 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                 normalized: true // Data is sorted by date from backend
             };
         })
+    };
+
+    const comparisonPlugin = {
+        id: 'comparisonHighlight',
+        beforeDatasetsDraw(chart) {
+            if (!comparisonRange) return;
+
+            const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+            const startX = x.getPixelForValue(new Date(comparisonRange.start).getTime());
+            const endX = x.getPixelForValue(new Date(comparisonRange.end).getTime());
+
+            // 1. Draw shaded area
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 255, 204, 0.05)';
+            const left = Math.min(startX, endX);
+            const width = Math.abs(endX - startX);
+            ctx.fillRect(left, top, width, bottom - top);
+
+            // 2. Draw vertical lines
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.4)';
+
+            ctx.beginPath();
+            ctx.moveTo(startX, top);
+            ctx.lineTo(startX, bottom);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(endX, top);
+            ctx.lineTo(endX, bottom);
+            ctx.stroke();
+
+            ctx.restore();
+        }
     };
 
     const options = {
@@ -497,6 +532,7 @@ const ChartContainer = ({ datasets, title, timeRange }) => {
                     ref={chartRef}
                     data={chartData}
                     options={options}
+                    plugins={[comparisonPlugin]}
                 />
             </div>
         </div>
