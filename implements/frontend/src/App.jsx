@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiPlus, FiSettings, FiActivity, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import AddRepoModal from './components/AddRepoModal';
@@ -121,14 +121,6 @@ function App() {
       />
 
       <div className="main-content">
-        <div className="header-actions">
-          <button className="btn-icon" onClick={fetchRepositories} title="Refresh">
-            <FiRefreshCw />
-          </button>
-          <button className="btn-icon" title="Settings">
-            <FiSettings />
-          </button>
-        </div>
 
         <Dashboard
           viewMode={viewMode}
