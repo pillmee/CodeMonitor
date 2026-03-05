@@ -10,53 +10,6 @@
 - **스타일**: 유리모피즘(Glassmorphism) 효과의 카드 UI, 부드러운 트랜지션.
 - **폰트**: Inter 또는 Outfit (Google Fonts).
 
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-- **Header**: 로고 ("Code Monitor"), 전역 설정 아이콘, 현재 전체 저장소 수 요약. 브라우저 탭의 타이틀(Window Title) 역시 "Code Monitor"로 설정됨.
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-- **Sidebar**: 등록된 저장소 목록 (분석중/완료 상태 표시), 저장소 추가 버튼. 각 저장소 항목에 마우스를 올리면(Hover) **로컬 파일 경로**와 **지정된 서브 디렉토리(include_path)** 정보가 **툴팁**으로 표시됨.
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-- **Main Chart Area**: 
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-  - `Multi-Line Chart`: 개별 저장소 비교용.
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-  - `Stacked/Area Chart`: 전체 코드량 통합(Total)용.
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
-- **Summary Cards**: 현재 총 라인수, 24시간 증감량, 분석 속도 등.
 ### 2.2. 페이지 구조
 - **Sidebar (Left)**: 
     - 저장소 목록 표시 및 선택 기능.
@@ -66,14 +19,6 @@
     - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
     - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
 
-### 2.2. 페이지 구조
-- **Sidebar (Left)**: 
-    - 저장소 목록 표시 및 선택 기능.
-    - **통합 디자인 버튼**: 'Add Repository' 및 개별 저장소 액션 버튼(Sync, Delete)에 세련된 글래스모피즘 스타일 적용.
-- **Main Dashboard (Right)**: 
-    - 상단 유틸리티 버튼을 제거하여 공간 효율성 극대화.
-    - **Single Screen Layout**: 수직 스크롤 없이 한 화면에 핵심 데이터를 모두 표시하도록 최적화.
-    - 요약 카드 섹션 및 대형 인터랙션 차트 포함.
 ## 3. 핵심 기능 (Features)
 
 ### 3.1. 인터랙티브 차트 (Chart.js)
@@ -143,6 +88,7 @@
 - **Add Repo Modern Modal**: 로컬 경로 입력 및 별칭 설정.
 - **Task Progress Bar**: 백필(Backfill) 진행 상황을 애니메이션으로 표시.
 
+### 3.7. 환경 설정 유지 (Persistence)
 - **localStorage 활용**: 다음 설정값들을 브라우저 로컬 스토리지에 저장하여 새로고침이나 재방문 시에도 유지함.
     - `cm_view_mode`: 그래프 모드 (`all` 또는 `selected`)
     - `cm_selected_repos`: 선택된 저장소 ID 목록 (JSON 배열)
