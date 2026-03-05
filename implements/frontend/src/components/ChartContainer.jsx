@@ -283,7 +283,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
         maintainAspectRatio: false,
         layout: {
             padding: {
-                bottom: 25
+                bottom: 50
             }
         },
         interaction: {
@@ -396,6 +396,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
                 },
                 ticks: {
                     color: '#A0A0A0',
+                    font: { size: 11 },
                     autoSkip: (internalRange.max - internalRange.min) >= (30 * 24 * 60 * 60 * 1000),
                     minRotation: 45,
                     maxRotation: 45,
