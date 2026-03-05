@@ -562,6 +562,12 @@ body {
   margin-bottom: 12px;
 }
 
+.analysis-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .analysis-inputs {
   display: flex;
   align-items: center;
@@ -654,6 +660,41 @@ body {
     flex-direction: row;
     width: 100%;
   }
+}
+
+/* Highlight Toggle Button */
+.highlight-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.highlight-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.highlight-toggle.active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  background: rgba(0, 255, 204, 0.08);
+}
+
+.highlight-toggle.active:hover {
+  background: rgba(0, 255, 204, 0.15);
 }
 
 /* Chart Toolbar Overlay Styles */

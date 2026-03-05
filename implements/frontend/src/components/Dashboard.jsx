@@ -52,6 +52,12 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         return Number(localStorage.getItem('cm_days')) || 7;
     });
 
+    // --- Comparison Feature States ---
+    const [compStart, setCompStart] = useState('');
+    const [compEnd, setCompEnd] = useState('');
+    const [compStats, setCompStats] = useState({ startLOC: 0, endLOC: 0, delta: 0, percent: 0 });
+    const [showHighlight, setShowHighlight] = useState(true);
+
     // --- Growth & Trend Analysis States ---
     const [growthDate, setGrowthDate] = useState('');
     const [growthStats, setGrowthStats] = useState({ addedUntil: 0, changeSince: 0, ratio: 0, targetLOC: 0 });
@@ -72,6 +78,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 const res = await axios.get(`${apiBase}/settings`);
                 if (res.data.comparison_start) setCompStart(res.data.comparison_start);
                 if (res.data.growth_target_date) setGrowthDate(res.data.growth_target_date);
+                if (res.data.show_highlight !== undefined) setShowHighlight(res.data.show_highlight === 'true');
 
                 if (res.data.comparison_end) {
                     if (res.data.comparison_end === 'today') {
@@ -92,6 +99,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         if (key === 'compStart') setCompStart(value);
         else if (key === 'compEnd') setCompEnd(value);
         else if (key === 'growthDate') setGrowthDate(value);
+        else if (key === 'showHighlight') setShowHighlight(value);
 
         let dbKey = '';
         let dbValue = value;
@@ -102,6 +110,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             if (value === getTodayStr()) dbValue = 'today';
         }
         else if (key === 'growthDate') dbKey = 'growth_target_date';
+        else if (key === 'showHighlight') { dbKey = 'show_highlight'; dbValue = String(value); }
 
         try {
             await axios.patch(`${apiBase}/settings`, { key: dbKey, value: dbValue });
@@ -226,6 +235,10 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 if (res.data.growth_target_date && res.data.growth_target_date !== growthDate) {
                     setGrowthDate(res.data.growth_target_date);
                 }
+                if (res.data.show_highlight !== undefined) {
+                    const serverVal = res.data.show_highlight === 'true';
+                    if (serverVal !== showHighlight) setShowHighlight(serverVal);
+                }
 
                 if (res.data.comparison_end) {
                     let resolvedEnd = res.data.comparison_end;
@@ -242,7 +255,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
 
         const interval = setInterval(fetchSettings, 10000);
         return () => clearInterval(interval);
-    }, [apiBase, compStart, compEnd, growthDate]);
+    }, [apiBase, compStart, compEnd, growthDate, showHighlight]);
 
     // Comparison & Growth Calculation Logic
     useEffect(() => {
@@ -337,10 +350,17 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                             value={days}
                             onChange={setDays}
                             options={[
-                                { value: 7, label: '7 Days' }, { value: 30, label: '30 Days' },
-                                { value: 90, label: '90 Days' }, { value: 365, label: '1 Year' },
-                                { value: 1095, label: '3 Years' }, { value: 1825, label: '5 Years' },
-                                { value: 3650, label: '10 Years' }, { value: 7300, label: '20 Years' }
+                                { value: 7, label: 'Last 7 Days' },
+                                { value: 30, label: 'Last 30 Days' },
+                                { value: 90, label: 'Last 90 Days' },
+                                { value: 365, label: 'Last 1 Year' },
+                                { value: 730, label: 'Last 2 Years' },
+                                { value: 1095, label: 'Last 3 Years' },
+                                { value: 1825, label: 'Last 5 Years' },
+                                { value: 2555, label: 'Last 7 Years' },
+                                { value: 3650, label: 'Last 10 Years' },
+                                { value: 5475, label: 'Last 15 Years' },
+                                { value: 7300, label: 'Last 20 Years' },
                             ]}
                         />
                     </div>
@@ -351,10 +371,19 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                     <div className="card analysis-card">
                         <div className="analysis-header">
                             <div className="card-title">Point Comparison</div>
-                            <div className="analysis-inputs">
-                                <input type="date" value={compStart} onChange={(e) => handleSettingChange('compStart', e.target.value)} className="date-input" />
-                                <span className="separator">vs</span>
-                                <input type="date" value={compEnd} onChange={(e) => handleSettingChange('compEnd', e.target.value)} className="date-input" />
+                            <div className="analysis-controls">
+                                <button
+                                    className={`highlight-toggle ${showHighlight ? 'active' : ''}`}
+                                    onClick={() => handleSettingChange('showHighlight', !showHighlight)}
+                                    title={showHighlight ? 'Hide chart highlight' : 'Show chart highlight'}
+                                >
+                                    {showHighlight ? '◈ On' : '◇ Off'}
+                                </button>
+                                <div className="analysis-inputs">
+                                    <input type="date" value={compStart} onChange={(e) => handleSettingChange('compStart', e.target.value)} className="date-input" />
+                                    <span className="separator">vs</span>
+                                    <input type="date" value={compEnd} onChange={(e) => handleSettingChange('compEnd', e.target.value)} className="date-input" />
+                                </div>
                             </div>
                         </div>
                         <div className="analysis-results">
@@ -402,7 +431,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 datasets={stats}
                 title={`${title} LOC Trend`}
                 timeRange={timeRange}
-                comparisonRange={compStart && compEnd ? { start: compStart, end: compEnd } : null}
+                comparisonRange={showHighlight && compStart && compEnd ? { start: compStart, end: compEnd } : null}
             />
         </div>
     );
