@@ -85,6 +85,52 @@ body {
   border-color: var(--accent-color);
 }
 
+.repo-actions {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.repo-item:hover .repo-actions {
+  opacity: 1;
+}
+
+.action-repo-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.action-repo-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.action-repo-btn.sync:hover {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.action-repo-btn.delete:hover {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
 .repo-name {
   font-weight: 600;
   font-size: 1.1rem;
@@ -145,8 +191,9 @@ body {
 .add-repo-btn {
   margin: 20px;
   padding: 12px;
-  background-color: transparent;
-  border: 1px dashed var(--accent-color);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--accent-color);
   color: var(--accent-color);
   border-radius: 8px;
   cursor: pointer;
@@ -156,10 +203,13 @@ body {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .add-repo-btn:hover {
   background-color: rgba(0, 255, 204, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 255, 204, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Main Content */
@@ -569,4 +619,48 @@ body {
   .res-item.divider {
     display: none;
   }
+}
+
+/* Chart Toolbar Overlay Styles */
+.chart-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  background: rgba(40, 40, 40, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 10;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.chart-toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.chart-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent-color);
+}
+
+.chart-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-color);
+  margin: 0 6px;
 }
