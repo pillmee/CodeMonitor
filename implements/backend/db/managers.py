@@ -148,3 +148,9 @@ class SettingsManager:
             cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
             row = cursor.fetchone()
             return row['value'] if row else default
+
+    def get_all_settings(self) -> Dict[str, str]:
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value FROM settings")
+            return {row['key']: row['value'] for row in cursor.fetchall()}

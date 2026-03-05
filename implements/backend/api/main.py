@@ -164,10 +164,9 @@ def get_task_status(task_id: str):
 
 @app.get("/api/settings")
 def get_settings(settings_mgr: SettingsManager = Depends(get_settings_manager)):
-    """전역 설정 반환 (예: theme)"""
-    # 실제로는 전체 목록을 가져오는 메서드가 필요하지만 임시로 단일 키 조회
-    theme = settings_mgr.get_value("theme", "dark")
-    return {"theme": theme}
+    """전역 설정 반환 (theme, comparison_start, comparison_end 등)"""
+    settings = settings_mgr.get_all_settings()
+    return settings
 
 @app.patch("/api/settings")
 def update_settings(
