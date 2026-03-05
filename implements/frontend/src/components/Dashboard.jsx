@@ -57,6 +57,11 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     const [compEnd, setCompEnd] = useState('');
     const [compStats, setCompStats] = useState({ startLOC: 0, endLOC: 0, delta: 0, percent: 0 });
 
+    const getTodayStr = () => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     useEffect(() => {
         localStorage.setItem('cm_days', days);
     }, [days]);
@@ -67,7 +72,14 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             try {
                 const res = await axios.get(`${apiBase}/settings`);
                 if (res.data.comparison_start) setCompStart(res.data.comparison_start);
-                if (res.data.comparison_end) setCompEnd(res.data.comparison_end);
+
+                if (res.data.comparison_end) {
+                    if (res.data.comparison_end === 'today') {
+                        setCompEnd(getTodayStr());
+                    } else {
+                        setCompEnd(res.data.comparison_end);
+                    }
+                }
             } catch (err) {
                 console.error('Failed to fetch settings', err);
             }
@@ -80,10 +92,15 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         if (key === 'start') setCompStart(value);
         else setCompEnd(value);
 
+        let saveValue = value;
+        if (key === 'end' && value === getTodayStr()) {
+            saveValue = 'today';
+        }
+
         try {
             await axios.patch(`${apiBase}/settings`, {
                 key: key === 'start' ? 'comparison_start' : 'comparison_end',
-                value: value
+                value: saveValue
             });
         } catch (err) {
             console.error('Failed to save setting', err);
@@ -208,8 +225,14 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 if (res.data.comparison_start && res.data.comparison_start !== compStart) {
                     setCompStart(res.data.comparison_start);
                 }
-                if (res.data.comparison_end && res.data.comparison_end !== compEnd) {
-                    setCompEnd(res.data.comparison_end);
+
+                if (res.data.comparison_end) {
+                    let resolvedEnd = res.data.comparison_end;
+                    if (resolvedEnd === 'today') resolvedEnd = getTodayStr();
+
+                    if (resolvedEnd !== compEnd) {
+                        setCompEnd(resolvedEnd);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to poll settings', err);
@@ -343,8 +366,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                     </div>
                     {/* Comparison Results */}
                     {(() => {
-                        const d = new Date();
-                        const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        const localToday = getTodayStr();
                         const isEndToday = compEnd === localToday;
 
                         return (
