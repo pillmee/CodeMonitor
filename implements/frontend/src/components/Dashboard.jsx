@@ -52,10 +52,9 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         return Number(localStorage.getItem('cm_days')) || 7;
     });
 
-    // --- Comparison Feature States ---
-    const [compStart, setCompStart] = useState('');
-    const [compEnd, setCompEnd] = useState('');
-    const [compStats, setCompStats] = useState({ startLOC: 0, endLOC: 0, delta: 0, percent: 0 });
+    // --- Growth & Trend Analysis States ---
+    const [growthDate, setGrowthDate] = useState('');
+    const [growthStats, setGrowthStats] = useState({ addedUntil: 0, changeSince: 0, ratio: 0, targetLOC: 0 });
 
     const getTodayStr = () => {
         const d = new Date();
@@ -66,12 +65,13 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         localStorage.setItem('cm_days', days);
     }, [days]);
 
-    // Fetch comparison dates from server on mount
+    // Fetch settings from server on mount
     useEffect(() => {
         const fetchSettings = async () => {
             try {
                 const res = await axios.get(`${apiBase}/settings`);
                 if (res.data.comparison_start) setCompStart(res.data.comparison_start);
+                if (res.data.growth_target_date) setGrowthDate(res.data.growth_target_date);
 
                 if (res.data.comparison_end) {
                     if (res.data.comparison_end === 'today') {
@@ -87,21 +87,24 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         fetchSettings();
     }, [apiBase]);
 
-    // Save comparison dates to server when they change
-    const handleCompDateChange = async (key, value) => {
-        if (key === 'start') setCompStart(value);
-        else setCompEnd(value);
+    // Save settings to server
+    const handleSettingChange = async (key, value) => {
+        if (key === 'compStart') setCompStart(value);
+        else if (key === 'compEnd') setCompEnd(value);
+        else if (key === 'growthDate') setGrowthDate(value);
 
-        let saveValue = value;
-        if (key === 'end' && value === getTodayStr()) {
-            saveValue = 'today';
+        let dbKey = '';
+        let dbValue = value;
+
+        if (key === 'compStart') dbKey = 'comparison_start';
+        else if (key === 'compEnd') {
+            dbKey = 'comparison_end';
+            if (value === getTodayStr()) dbValue = 'today';
         }
+        else if (key === 'growthDate') dbKey = 'growth_target_date';
 
         try {
-            await axios.patch(`${apiBase}/settings`, {
-                key: key === 'start' ? 'comparison_start' : 'comparison_end',
-                value: saveValue
-            });
+            await axios.patch(`${apiBase}/settings`, { key: dbKey, value: dbValue });
         } catch (err) {
             console.error('Failed to save setting', err);
         }
@@ -128,26 +131,21 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 repoIdsParam = selectedRepoIds.join(',');
             }
 
-            // Calculate the date range to fetch
-            // We need a range that covers both the user-selected 'days' window
-            // and the comparison points (compStart, compEnd).
             const now = new Date();
             const daysStart = subDays(now, days).getTime();
 
             let fetchStart = daysStart;
             let fetchEnd = now.getTime();
 
-            if (compStart) {
-                const csTs = new Date(compStart).getTime();
-                if (csTs < fetchStart) fetchStart = csTs;
-            }
-            if (compEnd) {
-                const ceTs = new Date(compEnd).getTime();
-                if (ceTs > fetchEnd) fetchEnd = ceTs;
-                if (ceTs < fetchStart) fetchStart = ceTs; // redundant but safe
-            }
+            // Comparison & Growth dates influence fetch range
+            [compStart, compEnd, growthDate].forEach(dStr => {
+                if (dStr) {
+                    const ts = new Date(dStr).getTime();
+                    if (ts < fetchStart) fetchStart = ts;
+                    if (ts > fetchEnd) fetchEnd = ts;
+                }
+            });
 
-            // Convert back to YYYY-MM-DD for the API
             const formatDate = (dateTs) => {
                 const d = new Date(dateTs);
                 return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -215,7 +213,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         };
 
         fetchStats();
-    }, [viewMode, selectedRepoIds, days, compStart, compEnd, apiBase]);
+    }, [viewMode, selectedRepoIds, days, compStart, compEnd, growthDate, apiBase]);
 
     // Polling for cross-browser sync
     useEffect(() => {
@@ -224,6 +222,9 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 const res = await axios.get(`${apiBase}/settings`);
                 if (res.data.comparison_start && res.data.comparison_start !== compStart) {
                     setCompStart(res.data.comparison_start);
+                }
+                if (res.data.growth_target_date && res.data.growth_target_date !== growthDate) {
+                    setGrowthDate(res.data.growth_target_date);
                 }
 
                 if (res.data.comparison_end) {
@@ -239,53 +240,66 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             }
         };
 
-        const interval = setInterval(fetchSettings, 10000); // 10 seconds
+        const interval = setInterval(fetchSettings, 10000);
         return () => clearInterval(interval);
-    }, [apiBase, compStart, compEnd]);
+    }, [apiBase, compStart, compEnd, growthDate]);
 
-    // Comparison Calculation Logic
+    // Comparison & Growth Calculation Logic
     useEffect(() => {
-        if (!compStart || !compEnd || rawDatasets.length === 0) return;
+        if (rawDatasets.length === 0) return;
 
-        const startDate = new Date(compStart).getTime();
-        const endDate = new Date(compEnd).getTime();
+        // 1. Point Comparison
+        if (compStart && compEnd) {
+            const startDate = new Date(compStart).getTime();
+            const endDate = new Date(compEnd).getTime();
 
-        let startSum = 0;
-        let endSum = 0;
+            let startSum = 0;
+            let endSum = 0;
 
-        rawDatasets.forEach(dataset => {
-            if (dataset.data.length === 0) return;
+            rawDatasets.forEach(dataset => {
+                if (dataset.data.length === 0) return;
+                const startIdx = dataset.data.findIndex(p => p.x >= startDate);
+                const startVal = startIdx !== -1 ? dataset.data[startIdx].y : dataset.data[dataset.data.length - 1].y;
+                const endIdx = dataset.data.findIndex(p => p.x >= endDate);
+                const endVal = endIdx !== -1 ? dataset.data[endIdx].y : dataset.data[dataset.data.length - 1].y;
+                startSum += startVal;
+                endSum += endVal;
+            });
+            const delta = endSum - startSum;
+            const percent = startSum !== 0 ? (delta / startSum) * 100 : 0;
+            setCompStats({ startLOC: startSum, endLOC: endSum, delta, percent });
+        }
 
-            // Find value at/before start date
-            let startVal = 0;
-            const startIdx = dataset.data.findIndex(p => p.x >= startDate);
-            if (startIdx !== -1) {
-                // 만약 첫 데이터가 시작일 이후라면 첫 데이터 사용, 아니면 시작일 직전 데이터 사용
-                startVal = dataset.data[startIdx].y;
-            } else {
-                startVal = dataset.data[dataset.data.length - 1].y;
-            }
+        // 2. Growth & Trend Analysis
+        if (growthDate) {
+            const targetTs = new Date(growthDate).getTime();
+            let startSum = 0;
+            let targetSum = 0;
+            let latestSum = 0;
 
-            // Find value at/before end date
-            let endVal = 0;
-            const endIdx = dataset.data.findIndex(p => p.x >= endDate);
-            if (endIdx !== -1) {
-                endVal = dataset.data[endIdx].y;
-            } else {
-                endVal = dataset.data[dataset.data.length - 1].y;
-            }
+            rawDatasets.forEach(dataset => {
+                if (dataset.data.length === 0) return;
 
-            startSum += startVal;
-            endSum += endVal;
-        });
+                // First data point (Start)
+                startSum += dataset.data[0].y;
 
-        const delta = endSum - startSum;
-        const percent = startSum !== 0 ? (delta / startSum) * 100 : 0;
+                // Target date point
+                const targetIdx = dataset.data.findIndex(p => p.x >= targetTs);
+                const targetVal = targetIdx !== -1 ? dataset.data[targetIdx].y : dataset.data[dataset.data.length - 1].y;
+                targetSum += targetVal;
 
-        setCompStats({ startLOC: startSum, endLOC: endSum, delta, percent });
-    }, [compStart, compEnd, rawDatasets]);
+                // Latest point (Today)
+                latestSum += dataset.data[dataset.data.length - 1].y;
+            });
 
-    // 통계값은 rawDatasets (개별 저장소)에서 계산 → 정확한 per-repo Net Change 보장
+            const addedUntil = targetSum - startSum;
+            const changeSince = latestSum - targetSum;
+            const ratio = addedUntil !== 0 ? (changeSince / addedUntil) * 100 : 0;
+
+            setGrowthStats({ addedUntil, changeSince, ratio, targetLOC: targetSum });
+        }
+    }, [compStart, compEnd, growthDate, rawDatasets]);
+
     let totalLOC = 0;
     let netChange = 0;
 
@@ -293,7 +307,6 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         if (dataset.data.length > 0) {
             const latest = dataset.data[dataset.data.length - 1].y;
             totalLOC += latest;
-
             const first = dataset.data[0].y;
             netChange += (latest - first);
         }
@@ -305,98 +318,83 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     }), [days]);
 
     return (
-        <>
-            <div className="summary-cards">
-                <div className="card">
-                    <div className="card-title">
-                        {viewMode === 'all' ? 'Total LOC (Total)' : 'Total Lines of Code'}
+        <div className="dashboard-content">
+            <div className="top-stats-row">
+                <div className="summary-cards">
+                    <div className="card mini">
+                        <div className="card-title">{viewMode === 'all' ? 'Total (LOC)' : 'Total LOC'}</div>
+                        <div className="card-value small">{totalLOC.toLocaleString()}</div>
                     </div>
-                    <div className="card-value">{totalLOC.toLocaleString()}</div>
-                </div>
-                <div className="card">
-                    <div className="card-title">
-                        {viewMode === 'all' ? `${days}D Net Change (Total)` : `${days} Days Net Change`}
-                    </div>
-                    <div className="card-value" style={{ color: netChange >= 0 ? 'var(--accent-color)' : 'var(--danger-color)' }}>
-                        {netChange > 0 ? '+' : ''}{netChange.toLocaleString()}
-                    </div>
-                </div>
-                <div className="card">
-                    <div className="card-title">Time Range</div>
-                    <CustomSelect
-                        value={days}
-                        onChange={setDays}
-                        options={[
-                            { value: 7, label: 'Last 7 Days' },
-                            { value: 30, label: 'Last 30 Days' },
-                            { value: 90, label: 'Last 90 Days' },
-                            { value: 365, label: 'Last 1 Year' },
-                            { value: 730, label: 'Last 2 Years' },
-                            { value: 1095, label: 'Last 3 Years' },
-                            { value: 1825, label: 'Last 5 Years' },
-                            { value: 2555, label: 'Last 7 Years' },
-                            { value: 3650, label: 'Last 10 Years' },
-                            { value: 5475, label: 'Last 15 Years' },
-                            { value: 7300, label: 'Last 20 Years' },
-                        ]}
-                    />
-                </div>
-            </div>
-
-            {/* Comparison Controls */}
-            <div className="comparison-container">
-                <div className="card comparison-card">
-                    <div className="comparison-header">
-                        <div className="card-title">Point Comparison</div>
-                        <div className="comparison-inputs">
-                            <input
-                                type="date"
-                                value={compStart}
-                                onChange={(e) => handleCompDateChange('start', e.target.value)}
-                                className="date-input"
-                            />
-                            <span className="separator">vs</span>
-                            <input
-                                type="date"
-                                value={compEnd}
-                                onChange={(e) => handleCompDateChange('end', e.target.value)}
-                                className="date-input"
-                            />
+                    <div className="card mini">
+                        <div className="card-title">{days}D Net Change</div>
+                        <div className="card-value small" style={{ color: netChange >= 0 ? 'var(--accent-color)' : 'var(--danger-color)' }}>
+                            {netChange > 0 ? '+' : ''}{netChange.toLocaleString()}
                         </div>
                     </div>
-                    {/* Comparison Results */}
-                    {(() => {
-                        const localToday = getTodayStr();
-                        const isEndToday = compEnd === localToday;
+                    <div className="card mini">
+                        <div className="card-title">Time Range</div>
+                        <CustomSelect
+                            value={days}
+                            onChange={setDays}
+                            options={[
+                                { value: 7, label: '7 Days' }, { value: 30, label: '30 Days' },
+                                { value: 90, label: '90 Days' }, { value: 365, label: '1 Year' },
+                                { value: 1095, label: '3 Years' }, { value: 1825, label: '5 Years' },
+                                { value: 3650, label: '10 Years' }, { value: 7300, label: '20 Years' }
+                            ]}
+                        />
+                    </div>
+                </div>
 
-                        return (
-                            <div className="comparison-results">
-                                <div className="res-item">
-                                    <span className="label">Start:</span>
-                                    <span className="value">{compStats.startLOC.toLocaleString()}</span>
+                <div className="analysis-cards">
+                    {/* Point Comparison */}
+                    <div className="card analysis-card">
+                        <div className="analysis-header">
+                            <div className="card-title">Point Comparison</div>
+                            <div className="analysis-inputs">
+                                <input type="date" value={compStart} onChange={(e) => handleSettingChange('compStart', e.target.value)} className="date-input" />
+                                <span className="separator">vs</span>
+                                <input type="date" value={compEnd} onChange={(e) => handleSettingChange('compEnd', e.target.value)} className="date-input" />
+                            </div>
+                        </div>
+                        <div className="analysis-results">
+                            <div className="res-mini">
+                                <span className="label">Diff:</span>
+                                <span className={`value ${compStats.delta >= 0 ? 'plus' : 'minus'}`}>
+                                    {compStats.delta >= 0 ? '+' : ''}{compStats.delta.toLocaleString()}
+                                    <span className="pct">({compStats.percent.toFixed(1)}%)</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Growth & Trend Analysis */}
+                    <div className="card analysis-card highlighted">
+                        <div className="analysis-header">
+                            <div className="card-title">Growth & Trend Analysis</div>
+                            <div className="analysis-inputs">
+                                <input type="date" value={growthDate} onChange={(e) => handleSettingChange('growthDate', e.target.value)} className="date-input highlighted" />
+                            </div>
+                        </div>
+                        <div className="analysis-results">
+                            <div className="res-grid">
+                                <div className="res-mini">
+                                    <span className="label">Added Until:</span>
+                                    <span className="value">{growthStats.addedUntil.toLocaleString()}</span>
                                 </div>
-                                <div className="res-item">
-                                    <span className="label">End:</span>
-                                    <span className="value">
-                                        {compStats.endLOC.toLocaleString()}
-                                        {isEndToday && (
-                                            <span className="today-text" style={{ fontSize: '0.85rem', color: 'var(--accent-color)', marginLeft: '8px', fontWeight: '500' }}>
-                                                (오늘)
-                                            </span>
-                                        )}
+                                <div className="res-mini">
+                                    <span className="label">Change Since:</span>
+                                    <span className={`value ${growthStats.changeSince >= 0 ? 'plus' : 'minus'}`}>
+                                        {growthStats.changeSince >= 0 ? '+' : ''}{growthStats.changeSince.toLocaleString()}
                                     </span>
                                 </div>
-                                <div className="res-item divider"></div>
-                                <div className="res-item main">
-                                    <span className="label">Diff:</span>
-                                    <span className={`value ${compStats.delta >= 0 ? 'plus' : 'minus'}`}>
-                                        {compStats.delta >= 0 ? '+' : ''}{compStats.delta.toLocaleString()}
-                                        <span className="pct">({compStats.percent.toFixed(2)}%)</span>
-                                    </span>
+                                <div className="res-mini main">
+                                    <span className="label">Growth Ratio:</span>
+                                    <span className="value accent">{growthStats.ratio.toFixed(2)}%</span>
                                 </div>
                             </div>
-                        );
-                    })()}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -406,7 +404,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 timeRange={timeRange}
                 comparisonRange={compStart && compEnd ? { start: compStart, end: compEnd } : null}
             />
-        </>
+        </div>
     );
 };
 
