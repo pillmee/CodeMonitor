@@ -111,9 +111,38 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 repoIdsParam = selectedRepoIds.join(',');
             }
 
+            // Calculate the date range to fetch
+            // We need a range that covers both the user-selected 'days' window
+            // and the comparison points (compStart, compEnd).
+            const now = new Date();
+            const daysStart = subDays(now, days).getTime();
+
+            let fetchStart = daysStart;
+            let fetchEnd = now.getTime();
+
+            if (compStart) {
+                const csTs = new Date(compStart).getTime();
+                if (csTs < fetchStart) fetchStart = csTs;
+            }
+            if (compEnd) {
+                const ceTs = new Date(compEnd).getTime();
+                if (ceTs > fetchEnd) fetchEnd = ceTs;
+                if (ceTs < fetchStart) fetchStart = ceTs; // redundant but safe
+            }
+
+            // Convert back to YYYY-MM-DD for the API
+            const formatDate = (dateTs) => {
+                const d = new Date(dateTs);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            };
+
             try {
                 const res = await axios.get(`${apiBase}/stats`, {
-                    params: { repo_ids: repoIdsParam, days }
+                    params: {
+                        repo_ids: repoIdsParam,
+                        start_date: formatDate(fetchStart),
+                        end_date: formatDate(fetchEnd)
+                    }
                 });
                 const processedDatasets = (res.data.datasets || []).map(ds => ({
                     ...ds,
@@ -125,15 +154,9 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         .sort((a, b) => a.x - b.x)
                 }));
 
-                // 통계값(Total LOC, Net Change)은 항상 개별 저장소 데이터로 계산
                 setRawDatasets(processedDatasets);
 
                 if (viewMode === 'all' && processedDatasets.length > 0) {
-                    // 모든 데이터셋을 일별 합산하여 단일 선으로 변환
-                    // 각 저장소에 대해 날짜별로 "마지막 알려진 값"을 유지하여
-                    // 특정 날짜에 한 저장소의 데이터가 없어도 합산이 누락되지 않도록 처리
-
-                    // 1. 각 저장소별 날짜→값 맵 구축
                     const repoDateMaps = processedDatasets.map(ds => {
                         const map = new Map();
                         ds.data.forEach(point => {
@@ -144,14 +167,12 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         return map;
                     });
 
-                    // 2. 전체 고유 날짜 수집 및 정렬
                     const allDates = new Set();
                     repoDateMaps.forEach(map => {
                         map.forEach((_, key) => allDates.add(key));
                     });
                     const sortedDates = Array.from(allDates).sort();
 
-                    // 3. 각 날짜에 대해 모든 저장소의 값을 합산 (없으면 마지막 알려진 값 유지)
                     const lastKnown = new Array(processedDatasets.length).fill(0);
                     const combinedData = sortedDates.map(dayKey => {
                         let sum = 0;
@@ -175,8 +196,29 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 console.error('Failed to fetch stats', err);
             }
         };
+
         fetchStats();
-    }, [viewMode, selectedRepoIds, days, apiBase]);
+    }, [viewMode, selectedRepoIds, days, compStart, compEnd, apiBase]);
+
+    // Polling for cross-browser sync
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await axios.get(`${apiBase}/settings`);
+                if (res.data.comparison_start && res.data.comparison_start !== compStart) {
+                    setCompStart(res.data.comparison_start);
+                }
+                if (res.data.comparison_end && res.data.comparison_end !== compEnd) {
+                    setCompEnd(res.data.comparison_end);
+                }
+            } catch (err) {
+                console.error('Failed to poll settings', err);
+            }
+        };
+
+        const interval = setInterval(fetchSettings, 10000); // 10 seconds
+        return () => clearInterval(interval);
+    }, [apiBase, compStart, compEnd]);
 
     // Comparison Calculation Logic
     useEffect(() => {

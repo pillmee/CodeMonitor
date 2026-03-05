@@ -115,6 +115,8 @@ def sync_repository(
 def get_statistics(
     repo_ids: Optional[str] = Query(None, description="Comma-separated repo IDs or 'all'"),
     days: int = Query(30, description="Fetch history for the last N days"),
+    start_date: Optional[str] = Query(None, description="Explicit start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="Explicit end date (YYYY-MM-DD)"),
     history_mgr: HistoryManager = Depends(get_history_manager),
     repo_mgr: RepositoryManager = Depends(get_repo_manager)
 ):
@@ -130,11 +132,14 @@ def get_statistics(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid repo_ids format")
 
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
-    
-    start_str = start_date.strftime("%Y-%m-%d 00:00:00")
-    end_str = end_date.strftime("%Y-%m-%d 23:59:59")
+    if start_date and end_date:
+        start_str = f"{start_date} 00:00:00"
+        end_str = f"{end_date} 23:59:59"
+    else:
+        now = datetime.now()
+        start = now - timedelta(days=days)
+        start_str = start.strftime("%Y-%m-%d 00:00:00")
+        end_str = now.strftime("%Y-%m-%d 23:59:59")
     
     raw_stats = history_mgr.get_stats(target_ids, start_str, end_str)
     
