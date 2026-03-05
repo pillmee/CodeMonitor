@@ -341,24 +341,40 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                             />
                         </div>
                     </div>
-                    <div className="comparison-results">
-                        <div className="res-item">
-                            <span className="label">Start:</span>
-                            <span className="value">{compStats.startLOC.toLocaleString()}</span>
-                        </div>
-                        <div className="res-item">
-                            <span className="label">End:</span>
-                            <span className="value">{compStats.endLOC.toLocaleString()}</span>
-                        </div>
-                        <div className="res-item divider"></div>
-                        <div className="res-item main">
-                            <span className="label">Diff:</span>
-                            <span className={`value ${compStats.delta >= 0 ? 'plus' : 'minus'}`}>
-                                {compStats.delta >= 0 ? '+' : ''}{compStats.delta.toLocaleString()}
-                                <span className="pct">({compStats.percent.toFixed(2)}%)</span>
-                            </span>
-                        </div>
-                    </div>
+                    {/* Comparison Results */}
+                    {(() => {
+                        const d = new Date();
+                        const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        const isEndToday = compEnd === localToday;
+
+                        return (
+                            <div className="comparison-results">
+                                <div className="res-item">
+                                    <span className="label">Start:</span>
+                                    <span className="value">{compStats.startLOC.toLocaleString()}</span>
+                                </div>
+                                <div className="res-item">
+                                    <span className="label">End:</span>
+                                    <span className="value">
+                                        {compStats.endLOC.toLocaleString()}
+                                        {isEndToday && (
+                                            <span className="today-text" style={{ fontSize: '0.85rem', color: 'var(--accent-color)', marginLeft: '8px', fontWeight: '500' }}>
+                                                (오늘)
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="res-item divider"></div>
+                                <div className="res-item main">
+                                    <span className="label">Diff:</span>
+                                    <span className={`value ${compStats.delta >= 0 ? 'plus' : 'minus'}`}>
+                                        {compStats.delta >= 0 ? '+' : ''}{compStats.delta.toLocaleString()}
+                                        <span className="pct">({compStats.percent.toFixed(2)}%)</span>
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
