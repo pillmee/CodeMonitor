@@ -45,6 +45,21 @@ function App() {
     }
   };
 
+  // 주기적인 상태 체크 (폴링)
+  useEffect(() => {
+    // 동기화나 분석 중인 저장소가 있는지 확인
+    const isWorking = repositories.some(r => r.status === 'syncing' || r.status === 'backfilling');
+
+    if (!isWorking) return;
+
+    // 작업 중인 저장소가 있으면 5초마다 상태 체크
+    const interval = setInterval(() => {
+      fetchRepositories();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [repositories]);
+
   useEffect(() => {
     fetchRepositories();
   }, []);
@@ -97,13 +112,19 @@ function App() {
   };
 
   const handleSyncRepo = async (repoId) => {
+    // 낙관적 업데이트: 즉시 UI 상태를 업데이트하여 사용자에게 피드백 제공
+    setRepositories(prev => prev.map(repo =>
+      repo.id === repoId ? { ...repo, status: 'syncing' } : repo
+    ));
+
     try {
       await axios.post(`${API_BASE}/repos/${repoId}/sync`);
-      alert('Sync started in the background.');
-      // 상태 업데이트를 위해 목록 리프레시 (optional, but good for status reflected)
+      // alert는 사용자 흐름을 방해하므로 제거하거나 콘솔 로그로 대체
+      console.log('Sync started in the background.');
       fetchRepositories();
     } catch (err) {
       alert(err.response?.data?.detail || 'Error starting sync');
+      fetchRepositories(); // 에러 발생 시 원래 상태 복구를 위해 리프레시
     }
   };
 
