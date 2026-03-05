@@ -283,7 +283,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
         maintainAspectRatio: false,
         layout: {
             padding: {
-                bottom: 10
+                bottom: 25
             }
         },
         interaction: {
