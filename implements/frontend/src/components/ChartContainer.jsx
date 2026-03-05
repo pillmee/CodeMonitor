@@ -230,26 +230,38 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
         })
     };
 
-    const comparisonPlugin = {
+    const comparisonPlugin = React.useMemo(() => ({
         id: 'comparisonHighlight',
         beforeDatasetsDraw(chart) {
             if (!comparisonRange) return;
 
             const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-            const startX = x.getPixelForValue(new Date(comparisonRange.start).getTime());
-            const endX = x.getPixelForValue(new Date(comparisonRange.end).getTime());
+            const startTs = new Date(comparisonRange.start).getTime();
+            const endTs = new Date(comparisonRange.end).getTime();
+
+            const startX = x.getPixelForValue(startTs);
+            const endX = x.getPixelForValue(endTs);
+
+            // Draw only if at least one point is within or near the chart area
+            ctx.save();
 
             // 1. Draw shaded area
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 255, 204, 0.05)';
+            // Increase opacity for better visibility (0.05 -> 0.1)
+            ctx.fillStyle = 'rgba(0, 255, 204, 0.1)';
             const left = Math.min(startX, endX);
             const width = Math.abs(endX - startX);
+
+            // Clip to chart area to avoid drawing over axes
+            ctx.beginPath();
+            ctx.rect(chart.chartArea.left, top, chart.chartArea.width, bottom - top);
+            ctx.clip();
+
             ctx.fillRect(left, top, width, bottom - top);
 
             // 2. Draw vertical lines
-            ctx.lineWidth = 1;
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = 'rgba(0, 255, 204, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.6)'; // Increased opacity
 
             ctx.beginPath();
             ctx.moveTo(startX, top);
@@ -263,7 +275,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
 
             ctx.restore();
         }
-    };
+    }), [comparisonRange]);
 
     const options = {
         responsive: true,
