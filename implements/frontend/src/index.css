@@ -167,21 +167,22 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 30px;
-  overflow-y: auto;
+  padding: 24px;
+  overflow: hidden;
+  /* Prevent overall scroll */
 }
 
 .header-actions {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   gap: 15px;
 }
 
 .summary-cards {
   display: flex;
   gap: 20px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   position: relative;
   z-index: 100;
   /* Dropdowns inside cards should be above charts */
@@ -218,7 +219,8 @@ body {
   border-radius: 12px;
   padding: 20px;
   flex: 1;
-  min-height: 650px;
+  min-height: 0;
+  /* Let flexbox handle the height to fit within screen */
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
@@ -455,7 +457,7 @@ body {
 
 /* Comparison Feature Styles */
 .comparison-container {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .comparison-card {
