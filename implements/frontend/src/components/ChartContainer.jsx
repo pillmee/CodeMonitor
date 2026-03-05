@@ -281,6 +281,11 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+                bottom: 10
+            }
+        },
         interaction: {
             mode: 'index',
             intersect: false,
