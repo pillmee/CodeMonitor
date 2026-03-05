@@ -417,7 +417,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                                     </span>
                                 </div>
                                 <div className="res-mini main">
-                                    <span className="label">Refinement Ratio:</span>
+                                    <span className="label">Refinement Ratio (vs Today):</span>
                                     <span className="value accent">{growthStats.ratio.toFixed(2)}%</span>
                                 </div>
                             </div>
