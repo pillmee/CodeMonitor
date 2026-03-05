@@ -30,6 +30,53 @@ ChartJS.register(
     zoomPlugin,
     Decimation
 );
+
+// Global plugin for comparison highlighting
+const comparisonHighlightPlugin = {
+    id: 'comparisonHighlight',
+    beforeDatasetsDraw(chart, args, options) {
+        const { range } = options;
+        if (!range || !range.start || !range.end) return;
+
+        const { ctx, chartArea: { top, bottom, left, width }, scales: { x } } = chart;
+        const startTs = new Date(range.start).getTime();
+        const endTs = new Date(range.end).getTime();
+
+        const startX = x.getPixelForValue(startTs);
+        const endX = x.getPixelForValue(endTs);
+
+        if (isNaN(startX) || isNaN(endX)) return;
+
+        ctx.save();
+
+        // 1. Draw shaded area
+        ctx.fillStyle = 'rgba(0, 255, 204, 0.12)'; // Slightly more visible
+        const rectLeft = Math.max(left, Math.min(startX, endX));
+        const rectRight = Math.min(left + width, Math.max(startX, endX));
+        const rectWidth = rectRight - rectLeft;
+
+        if (rectWidth > 0) {
+            ctx.fillRect(rectLeft, top, rectWidth, bottom - top);
+        }
+
+        // 2. Draw vertical lines (only if they are within the chart area)
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.7)';
+
+        [startX, endX].forEach(xPos => {
+            if (xPos >= left && xPos <= left + width) {
+                ctx.beginPath();
+                ctx.moveTo(xPos, top);
+                ctx.lineTo(xPos, bottom);
+                ctx.stroke();
+            }
+        });
+
+        ctx.restore();
+    }
+};
+ChartJS.register(comparisonHighlightPlugin);
 // 좌측 패닝/줌 경계: 2000년 1월 1일
 const MIN_DATE = new Date(2000, 0, 1).getTime();
 
@@ -230,52 +277,6 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
         })
     };
 
-    const comparisonPlugin = React.useMemo(() => ({
-        id: 'comparisonHighlight',
-        beforeDatasetsDraw(chart) {
-            if (!comparisonRange) return;
-
-            const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-            const startTs = new Date(comparisonRange.start).getTime();
-            const endTs = new Date(comparisonRange.end).getTime();
-
-            const startX = x.getPixelForValue(startTs);
-            const endX = x.getPixelForValue(endTs);
-
-            // Draw only if at least one point is within or near the chart area
-            ctx.save();
-
-            // 1. Draw shaded area
-            // Increase opacity for better visibility (0.05 -> 0.1)
-            ctx.fillStyle = 'rgba(0, 255, 204, 0.1)';
-            const left = Math.min(startX, endX);
-            const width = Math.abs(endX - startX);
-
-            // Clip to chart area to avoid drawing over axes
-            ctx.beginPath();
-            ctx.rect(chart.chartArea.left, top, chart.chartArea.width, bottom - top);
-            ctx.clip();
-
-            ctx.fillRect(left, top, width, bottom - top);
-
-            // 2. Draw vertical lines
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([6, 4]);
-            ctx.strokeStyle = 'rgba(0, 255, 204, 0.6)'; // Increased opacity
-
-            ctx.beginPath();
-            ctx.moveTo(startX, top);
-            ctx.lineTo(startX, bottom);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(endX, top);
-            ctx.lineTo(endX, bottom);
-            ctx.stroke();
-
-            ctx.restore();
-        }
-    }), [comparisonRange]);
 
     const options = {
         responsive: true,
@@ -320,6 +321,9 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
                         return text;
                     }
                 }
+            },
+            comparisonHighlight: {
+                range: comparisonRange
             },
             decimation: {
                 enabled: true,
@@ -544,7 +548,6 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
                     ref={chartRef}
                     data={chartData}
                     options={options}
-                    plugins={[comparisonPlugin]}
                 />
             </div>
         </div>
