@@ -146,7 +146,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             let fetchStart = daysStart;
             let fetchEnd = now.getTime();
 
-            // Comparison & Growth dates influence fetch range
+            // Comparison & Refinement dates influence fetch range
             [compStart, compEnd, refinementDate].forEach(dStr => {
                 if (dStr) {
                     const ts = new Date(dStr).getTime();
@@ -255,9 +255,9 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
 
         const interval = setInterval(fetchSettings, 10000);
         return () => clearInterval(interval);
-    }, [apiBase, compStart, compEnd, growthDate, showHighlight]);
+    }, [apiBase, compStart, compEnd, refinementDate, showHighlight]);
 
-    // Comparison & Growth Calculation Logic
+    // Comparison & Refinement Calculation Logic
     useEffect(() => {
         if (rawDatasets.length === 0) return;
 
