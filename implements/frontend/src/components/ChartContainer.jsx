@@ -529,27 +529,26 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
             onMouseLeave={handleMouseUp}
             style={{ cursor: dragData.current.isDragging ? 'grabbing' : 'grab', position: 'relative' }}
         >
-            <div className="chart-toolbar">
-                <button className="chart-toolbar-btn" onClick={() => handlePan('left')} title="Pan Left">
-                    <FiArrowLeft />
-                </button>
-                <button className="chart-toolbar-btn" onClick={() => handlePan('right')} title="Pan Right">
-                    <FiArrowRight />
-                </button>
-                <div className="chart-toolbar-divider" />
-                <button className="chart-toolbar-btn" onClick={() => handleZoom('in')} title="Zoom In">
-                    <FiZoomIn />
-                </button>
-                <button className="chart-toolbar-btn" onClick={() => handleZoom('out')} title="Zoom Out">
-                    <FiZoomOut />
-                </button>
-                <div className="chart-toolbar-divider" />
-                <button className="chart-toolbar-btn" onClick={handleReset} title="Reset View">
-                    <FiRefreshCcw />
-                </button>
-            </div>
-
             <div style={{ flex: 1, position: 'relative' }}>
+                <div className="chart-toolbar">
+                    <button className="chart-toolbar-btn" onClick={() => handlePan('left')} title="Pan Left">
+                        <FiArrowLeft />
+                    </button>
+                    <button className="chart-toolbar-btn" onClick={() => handlePan('right')} title="Pan Right">
+                        <FiArrowRight />
+                    </button>
+                    <div className="chart-toolbar-divider" />
+                    <button className="chart-toolbar-btn" onClick={() => handleZoom('in')} title="Zoom In">
+                        <FiZoomIn />
+                    </button>
+                    <button className="chart-toolbar-btn" onClick={() => handleZoom('out')} title="Zoom Out">
+                        <FiZoomOut />
+                    </button>
+                    <div className="chart-toolbar-divider" />
+                    <button className="chart-toolbar-btn" onClick={handleReset} title="Reset View">
+                        <FiRefreshCcw />
+                    </button>
+                </div>
                 <Line
                     ref={chartRef}
                     data={chartData}
