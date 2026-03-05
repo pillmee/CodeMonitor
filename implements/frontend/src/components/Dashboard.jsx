@@ -58,9 +58,9 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     const [compStats, setCompStats] = useState({ startLOC: 0, endLOC: 0, delta: 0, percent: 0 });
     const [showHighlight, setShowHighlight] = useState(true);
 
-    // --- Growth & Trend Analysis States ---
-    const [growthDate, setGrowthDate] = useState('');
-    const [growthStats, setGrowthStats] = useState({ addedUntil: 0, changeSince: 0, ratio: 0, targetLOC: 0 });
+    // --- Refinement Analysis States ---
+    const [refinementDate, setRefinementDate] = useState('');
+    const [refinementStats, setRefinementStats] = useState({ baselineLOC: 0, netChange: 0, ratio: 100 });
 
     const getTodayStr = () => {
         const d = new Date();
@@ -77,7 +77,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             try {
                 const res = await axios.get(`${apiBase}/settings`);
                 if (res.data.comparison_start) setCompStart(res.data.comparison_start);
-                if (res.data.growth_target_date) setGrowthDate(res.data.growth_target_date);
+                if (res.data.growth_target_date) setRefinementDate(res.data.growth_target_date);
                 if (res.data.show_highlight !== undefined) setShowHighlight(res.data.show_highlight === 'true');
 
                 if (res.data.comparison_end) {
@@ -98,7 +98,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
     const handleSettingChange = async (key, value) => {
         if (key === 'compStart') setCompStart(value);
         else if (key === 'compEnd') setCompEnd(value);
-        else if (key === 'growthDate') setGrowthDate(value);
+        else if (key === 'refinementDate') setRefinementDate(value);
         else if (key === 'showHighlight') setShowHighlight(value);
 
         let dbKey = '';
@@ -109,7 +109,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             dbKey = 'comparison_end';
             if (value === getTodayStr()) dbValue = 'today';
         }
-        else if (key === 'growthDate') dbKey = 'growth_target_date';
+        else if (key === 'refinementDate') dbKey = 'growth_target_date';
         else if (key === 'showHighlight') { dbKey = 'show_highlight'; dbValue = String(value); }
 
         try {
@@ -147,7 +147,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             let fetchEnd = now.getTime();
 
             // Comparison & Growth dates influence fetch range
-            [compStart, compEnd, growthDate].forEach(dStr => {
+            [compStart, compEnd, refinementDate].forEach(dStr => {
                 if (dStr) {
                     const ts = new Date(dStr).getTime();
                     if (ts < fetchStart) fetchStart = ts;
@@ -222,7 +222,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         };
 
         fetchStats();
-    }, [viewMode, selectedRepoIds, days, compStart, compEnd, growthDate, apiBase]);
+    }, [viewMode, selectedRepoIds, days, compStart, compEnd, refinementDate, apiBase]);
 
     // Polling for cross-browser sync
     useEffect(() => {
@@ -232,8 +232,8 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 if (res.data.comparison_start && res.data.comparison_start !== compStart) {
                     setCompStart(res.data.comparison_start);
                 }
-                if (res.data.growth_target_date && res.data.growth_target_date !== growthDate) {
-                    setGrowthDate(res.data.growth_target_date);
+                if (res.data.growth_target_date && res.data.growth_target_date !== refinementDate) {
+                    setRefinementDate(res.data.growth_target_date);
                 }
                 if (res.data.show_highlight !== undefined) {
                     const serverVal = res.data.show_highlight === 'true';
@@ -283,34 +283,30 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
             setCompStats({ startLOC: startSum, endLOC: endSum, delta, percent });
         }
 
-        // 2. Growth & Trend Analysis
-        if (growthDate) {
-            const targetTs = new Date(growthDate).getTime();
-            let startSum = 0;
+        // 2. Code Refinement Analysis
+        if (refinementDate) {
+            const targetTs = new Date(refinementDate).getTime();
             let targetSum = 0;
-            let latestSum = 0;
+            let currentSum = 0;
 
             rawDatasets.forEach(dataset => {
-                if (dataset.data.length === 0) return;
+                if (!dataset.data || dataset.data.length === 0) return;
 
-                // First data point (Start)
-                startSum += dataset.data[0].y;
-
-                // Target date point
+                // Baseline point (Target Date)
                 const targetIdx = dataset.data.findIndex(p => p.x >= targetTs);
                 const targetVal = targetIdx !== -1 ? dataset.data[targetIdx].y : dataset.data[dataset.data.length - 1].y;
                 targetSum += targetVal;
 
-                // Latest point (Today)
-                latestSum += dataset.data[dataset.data.length - 1].y;
+                // Today point (Latest)
+                currentSum += dataset.data[dataset.data.length - 1].y;
             });
 
-            const changeSince = latestSum - targetSum;
-            const ratio = targetSum !== 0 ? (latestSum / targetSum) * 100 : 0;
+            const netChange = currentSum - targetSum;
+            const ratio = targetSum > 0 ? (currentSum / targetSum) * 100 : 100;
 
-            setGrowthStats({ addedUntil: 0, changeSince, ratio, targetLOC: targetSum });
+            setRefinementStats({ baselineLOC: targetSum, netChange, ratio });
         }
-    }, [compStart, compEnd, growthDate, rawDatasets]);
+    }, [compStart, compEnd, refinementDate, rawDatasets]);
 
     let totalLOC = 0;
     let netChange = 0;
@@ -401,24 +397,24 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         <div className="analysis-header">
                             <div className="card-title">Code Refinement Analysis</div>
                             <div className="analysis-inputs">
-                                <input type="date" value={growthDate} onChange={(e) => handleSettingChange('growthDate', e.target.value)} className="date-input highlighted" />
+                                <input type="date" value={refinementDate} onChange={(e) => handleSettingChange('refinementDate', e.target.value)} className="date-input highlighted" />
                             </div>
                         </div>
                         <div className="analysis-results">
                             <div className="res-grid">
                                 <div className="res-mini">
                                     <span className="label">Baseline LOC:</span>
-                                    <span className="value">{growthStats.targetLOC.toLocaleString()}</span>
+                                    <span className="value">{refinementStats.baselineLOC.toLocaleString()}</span>
                                 </div>
                                 <div className="res-mini">
                                     <span className="label">Net Change:</span>
-                                    <span className={`value ${growthStats.changeSince >= 0 ? 'plus' : 'minus'}`}>
-                                        {growthStats.changeSince >= 0 ? '+' : ''}{growthStats.changeSince.toLocaleString()}
+                                    <span className={`value ${refinementStats.netChange >= 0 ? 'plus' : 'minus'}`}>
+                                        {refinementStats.netChange >= 0 ? '+' : ''}{refinementStats.netChange.toLocaleString()}
                                     </span>
                                 </div>
                                 <div className="res-mini main">
                                     <span className="label">Refinement Ratio (vs Today):</span>
-                                    <span className="value accent">{growthStats.ratio.toFixed(2)}%</span>
+                                    <span className="value accent">{refinementStats.ratio.toFixed(2)}%</span>
                                 </div>
                             </div>
                         </div>
@@ -431,7 +427,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 title={`${title} LOC Trend`}
                 timeRange={timeRange}
                 comparisonRange={showHighlight && compStart && compEnd ? { start: compStart, end: compEnd } : null}
-                growthDate={growthDate}
+                refinementDate={refinementDate}
             />
         </div>
     );

@@ -117,7 +117,7 @@ ChartJS.register(comparisonHighlightPlugin, growthHighlightPlugin);
 // 좌측 패닝/줌 경계: 2000년 1월 1일
 const MIN_DATE = new Date(2000, 0, 1).getTime();
 
-const ChartContainer = ({ datasets, title, timeRange, comparisonRange, growthDate }) => {
+const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinementDate }) => {
     const chartRef = React.useRef(null);
     const containerRef = React.useRef(null);
     const [scaleUnit, setScaleUnit] = React.useState('day');
@@ -368,7 +368,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, growthDat
                 range: comparisonRange
             },
             growthHighlight: {
-                targetDate: growthDate
+                targetDate: refinementDate
             },
             decimation: {
                 enabled: true,
