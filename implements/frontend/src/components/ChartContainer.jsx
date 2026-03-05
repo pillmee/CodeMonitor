@@ -76,11 +76,48 @@ const comparisonHighlightPlugin = {
         ctx.restore();
     }
 };
-ChartJS.register(comparisonHighlightPlugin);
+
+// Global plugin for growth target visualization
+const growthHighlightPlugin = {
+    id: 'growthHighlight',
+    afterDatasetsDraw(chart, args, options) {
+        const { targetDate } = options;
+        if (!targetDate) return;
+
+        const { ctx, chartArea: { top, bottom, left, width }, scales: { x } } = chart;
+        const targetTs = new Date(targetDate).getTime();
+        const xPos = x.getPixelForValue(targetTs);
+
+        if (xPos < left || xPos > left + width || isNaN(xPos)) return;
+
+        ctx.save();
+
+        // Draw vertical indicator line
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]); // Solid line
+        ctx.strokeStyle = '#FFCC00'; // Gold color to differentiate
+
+        ctx.beginPath();
+        ctx.moveTo(xPos, top);
+        ctx.lineTo(xPos, bottom);
+        ctx.stroke();
+
+        // Draw "Refinement Baseline" label
+        ctx.fillStyle = '#FFCC00';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('REFINEMENT BASELINE', xPos, top - 8);
+
+        ctx.restore();
+    }
+};
+
+ChartJS.register(comparisonHighlightPlugin, growthHighlightPlugin);
+
 // 좌측 패닝/줌 경계: 2000년 1월 1일
 const MIN_DATE = new Date(2000, 0, 1).getTime();
 
-const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
+const ChartContainer = ({ datasets, title, timeRange, comparisonRange, growthDate }) => {
     const chartRef = React.useRef(null);
     const containerRef = React.useRef(null);
     const [scaleUnit, setScaleUnit] = React.useState('day');
@@ -329,6 +366,9 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange }) => {
             },
             comparisonHighlight: {
                 range: comparisonRange
+            },
+            growthHighlight: {
+                targetDate: growthDate
             },
             decimation: {
                 enabled: true,

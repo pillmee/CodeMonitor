@@ -305,11 +305,10 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 latestSum += dataset.data[dataset.data.length - 1].y;
             });
 
-            const addedUntil = targetSum - startSum;
             const changeSince = latestSum - targetSum;
-            const ratio = addedUntil !== 0 ? (changeSince / addedUntil) * 100 : 0;
+            const ratio = targetSum !== 0 ? (latestSum / targetSum) * 100 : 0;
 
-            setGrowthStats({ addedUntil, changeSince, ratio, targetLOC: targetSum });
+            setGrowthStats({ addedUntil: 0, changeSince, ratio, targetLOC: targetSum });
         }
     }, [compStart, compEnd, growthDate, rawDatasets]);
 
@@ -397,10 +396,10 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         </div>
                     </div>
 
-                    {/* Growth & Trend Analysis */}
+                    {/* Code Refinement Analysis */}
                     <div className="card analysis-card highlighted">
                         <div className="analysis-header">
-                            <div className="card-title">Growth & Trend Analysis</div>
+                            <div className="card-title">Code Refinement Analysis</div>
                             <div className="analysis-inputs">
                                 <input type="date" value={growthDate} onChange={(e) => handleSettingChange('growthDate', e.target.value)} className="date-input highlighted" />
                             </div>
@@ -408,17 +407,17 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         <div className="analysis-results">
                             <div className="res-grid">
                                 <div className="res-mini">
-                                    <span className="label">Added Until:</span>
-                                    <span className="value">{growthStats.addedUntil.toLocaleString()}</span>
+                                    <span className="label">Baseline LOC:</span>
+                                    <span className="value">{growthStats.targetLOC.toLocaleString()}</span>
                                 </div>
                                 <div className="res-mini">
-                                    <span className="label">Change Since:</span>
+                                    <span className="label">Net Change:</span>
                                     <span className={`value ${growthStats.changeSince >= 0 ? 'plus' : 'minus'}`}>
                                         {growthStats.changeSince >= 0 ? '+' : ''}{growthStats.changeSince.toLocaleString()}
                                     </span>
                                 </div>
                                 <div className="res-mini main">
-                                    <span className="label">Growth Ratio:</span>
+                                    <span className="label">Refinement Ratio:</span>
                                     <span className="value accent">{growthStats.ratio.toFixed(2)}%</span>
                                 </div>
                             </div>
@@ -432,6 +431,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 title={`${title} LOC Trend`}
                 timeRange={timeRange}
                 comparisonRange={showHighlight && compStart && compEnd ? { start: compStart, end: compEnd } : null}
+                growthDate={growthDate}
             />
         </div>
     );
