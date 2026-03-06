@@ -25,6 +25,16 @@ class BackfillWorker:
         self.db_path = db_path
         self._tasks: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
+        self._path_locks: Dict[str, threading.Lock] = {}
+        self._path_lock_mutex = threading.Lock()
+
+    def _get_path_lock(self, repo_path: str) -> threading.Lock:
+        # 경로 정규화 (끝 슬래시 제거, 절대 경로)
+        norm_path = os.path.abspath(repo_path).rstrip(os.path.sep)
+        with self._path_lock_mutex:
+            if norm_path not in self._path_locks:
+                self._path_locks[norm_path] = threading.Lock()
+            return self._path_locks[norm_path]
 
     def _update_task(self, task_id: str, **kwargs):
         with self._lock:
@@ -70,9 +80,12 @@ class BackfillWorker:
             
             repo_manager.update_status(repo_id, "backfilling")
 
-            analyzer = GitAnalyzer(repo_path, include_path)
-            
-            # 여기서 cloc를 통한 초기(가장 첫 커밋 직전 상태) 베이스라인 측정을 생략하고,
+            # 동일 경로에 대해 한 번에 하나만 실행되도록 락 적용
+            path_lock = self._get_path_lock(repo_path)
+            with path_lock:
+                analyzer = GitAnalyzer(repo_path, include_path)
+                
+                # 여기서 cloc를 통한 초기(가장 첫 커밋 직전 상태) 베이스라인 측정을 생략하고,
             # 단순히 0에서 시작하여 insertions/deletions 만으로 계산.
             # (보다 정밀하게 하려면 cloc과 혼합해야 하지만 성능을 위해 로그 기반 누적 계산)
             
@@ -148,12 +161,13 @@ class BackfillWorker:
             
             analyzer = GitAnalyzer(repo_path, include_path)
             
-            # 1. Git Pull
-            # pull() 내부에 subprocess.run이 있어 즉시 실행됨
-            if not analyzer.pull():
-                print(f"Sync Failed: git pull failed for repo {repo_id}")
-                repo_manager.update_status(repo_id, "error")
-                return
+            # 1. Git Pull (동일 경로에 대해 한 번에 하나만 실행되도록 락 적용)
+            path_lock = self._get_path_lock(repo_path)
+            with path_lock:
+                if not analyzer.pull():
+                    print(f"Sync Failed: git pull failed for repo {repo_id}")
+                    repo_manager.update_status(repo_id, "error")
+                    return
 
             # 2. 마지막 레코드 가져오기 (증분 분석용)
             last_record = history_manager.get_last_history_record(repo_id)
