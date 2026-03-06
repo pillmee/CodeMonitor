@@ -286,11 +286,15 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
         // 2. Code Refinement Analysis
         if (refinementDate) {
             const targetTs = new Date(refinementDate).getTime();
+            let startSum = 0;
             let targetSum = 0;
             let currentSum = 0;
 
             rawDatasets.forEach(dataset => {
                 if (!dataset.data || dataset.data.length === 0) return;
+
+                // First point (Absolute Start)
+                startSum += dataset.data[0].y;
 
                 // Baseline point (Target Date)
                 const targetIdx = dataset.data.findIndex(p => p.x >= targetTs);
@@ -301,10 +305,14 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                 currentSum += dataset.data[dataset.data.length - 1].y;
             });
 
+            const baselineGrowth = targetSum - startSum;
+            const currentGrowth = currentSum - startSum;
             const netChange = currentSum - targetSum;
-            const ratio = targetSum > 0 ? (currentSum / targetSum) * 100 : 100;
 
-            setRefinementStats({ baselineLOC: targetSum, netChange, ratio });
+            // Ratio = (Today's Growth / Baseline Growth) * 100
+            const ratio = baselineGrowth > 0 ? (currentGrowth / baselineGrowth) * 100 : 100;
+
+            setRefinementStats({ baselineLOC: baselineGrowth, netChange, ratio });
         }
     }, [compStart, compEnd, refinementDate, rawDatasets]);
 
@@ -403,7 +411,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                         <div className="analysis-results">
                             <div className="res-grid">
                                 <div className="res-mini">
-                                    <span className="label">Baseline LOC:</span>
+                                    <span className="label">Baseline Growth:</span>
                                     <span className="value">{refinementStats.baselineLOC.toLocaleString()}</span>
                                 </div>
                                 <div className="res-mini">
@@ -414,7 +422,7 @@ const Dashboard = ({ viewMode, selectedRepoIds, apiBase, repositories }) => {
                                 </div>
                                 <div className="res-mini main">
                                     <span className="label">Refinement Ratio (vs Today):</span>
-                                    <span className="value accent">{refinementStats.ratio.toFixed(2)}%</span>
+                                    <span className="value accent">{refinementStats.ratio.toFixed(4)}%</span>
                                 </div>
                             </div>
                         </div>
