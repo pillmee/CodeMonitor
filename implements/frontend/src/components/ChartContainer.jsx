@@ -133,7 +133,10 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
         return { min: timeRange?.min, max: timeRange?.max };
     });
     const [internalYRange, setInternalYRange] = React.useState({ min: undefined, max: undefined });
-    const dragData = React.useRef({ isDragging: false, lastX: 0, lastY: 0 });
+    const [isDragging, setIsDragging] = React.useState(false);
+    const dragData = React.useRef({ lastX: 0, lastY: 0 });
+    // 휠 디바운스가 살아있는 동안 stale internalRange 대신 사용할 즉시 동기 뷰 상태
+    const pendingViewRef = React.useRef(null);
 
     // Max Range는 선택한 Time Range에 맞춤 (선택 범위 이상 줌 아웃 불가)
     const currentMaxRange = React.useMemo(() => {
@@ -143,9 +146,14 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
         return 10 * 365.25 * 24 * 60 * 60 * 1000; // fallback: 10 years
     }, [timeRange]);
 
+    const isFirstTimeRangeEffect = React.useRef(true);
     React.useEffect(() => {
+        if (isFirstTimeRangeEffect.current) {
+            isFirstTimeRangeEffect.current = false;
+            return;
+        }
+        // Time Range 드롭다운 변경 시에만 차트 윈도우를 리셋 (마운트 시 localStorage 값 보존)
         if (timeRange) {
-            // 부모에서 timeRange가 명시적으로 변경되면(드롭다운 등) 내부 범위를 초기화
             setInternalRange({ min: timeRange.min, max: timeRange.max });
         }
     }, [timeRange]);
@@ -171,22 +179,21 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
 
         if (newUnit !== scaleUnit) {
             if (silent) {
-                // 인스턴스 옵션에 직접 반영하여 리렌더링 없이 눈금 업데이트 준비
                 chart.options.scales.x.time.unit = newUnit;
             } else {
-                // 인터랙션 종료 시점에만 React 상태와 동기화하여 리렌더링 유도
-                setInternalRange({ min, max });
+                // onComplete에서 setInternalRange를 이미 처리하므로 여기서는 unit만 동기화
                 setScaleUnit(newUnit);
             }
         }
     };
 
     const handleMouseDown = (e) => {
-        dragData.current = { isDragging: true, lastX: e.clientX, lastY: e.clientY };
+        setIsDragging(true);
+        dragData.current = { lastX: e.clientX, lastY: e.clientY, startX: e.clientX, startY: e.clientY };
     };
 
     const handleMouseMove = (e) => {
-        if (!dragData.current.isDragging || !chartRef.current) return;
+        if (!isDragging || !chartRef.current) return;
 
         const chart = chartRef.current;
         const deltaX = e.clientX - dragData.current.lastX;
@@ -223,73 +230,133 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
         chart.update('none');
     };
 
-    const handleMouseUp = () => {
-        if (dragData.current.isDragging && chartRef.current) {
-            const chart = chartRef.current;
-            setInternalRange({
-                min: chart.options.scales.x.min,
-                max: chart.options.scales.x.max
-            });
-            setInternalYRange({
-                min: chart.options.scales.y.min,
-                max: chart.options.scales.y.max
-            });
+    const handleDragEnd = () => {
+        if (isDragging && chartRef.current) {
+            const dx = Math.abs(dragData.current.lastX - dragData.current.startX);
+            const dy = Math.abs(dragData.current.lastY - dragData.current.startY);
+            // 단순 클릭(< 3px)은 상태 저장 생략 — 클릭이 줌 리셋을 유발하는 현상 방지
+            if (dx > 3 || dy > 3) {
+                const chart = chartRef.current;
+                setInternalRange({
+                    min: chart.options.scales.x.min,
+                    max: chart.options.scales.x.max
+                });
+                setInternalYRange({
+                    min: chart.options.scales.y.min,
+                    max: chart.options.scales.y.max
+                });
+            }
         }
-        dragData.current.isDragging = false;
+        setIsDragging(false);
     };
 
     const wheelTimeout = React.useRef(null);
     const handleWheel = (e) => {
         if (!chartRef.current) return;
-
         const chart = chartRef.current;
-        const deltaX = e.deltaX;
-        const deltaY = e.deltaY;
-
-        // 세로 방향 휠 조작이 지배적이면(줌) 브라우저 기본 스크롤과 충돌할 수 있으므로
-        // 차트 위에서는 무조건 preventDefault를 수행하여 줌 전용 영역으로 만듦
         e.preventDefault();
 
-        // 트랙패드 좌우 스와이프 (Pan) 처리
-        // deltaY가 매우 작고 deltaX가 존재할 때만 Pan으로 간주하거나, 
-        // 줌 플러그인이 deltaY 기반으로 이미 작동하므로 여기서는 deltaX 기반 이동만 보조함
+        const { deltaX, deltaY } = e;
+        const now = new Date().getTime();
+
         if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 1) {
+            // 트랙패드 좌우 스와이프 → X축 팬
             const xScale = chart.scales.x;
             const msPerPixel = (xScale.max - xScale.min) / xScale.width;
             let timeShift = deltaX * msPerPixel * 0.8;
 
-            const now = new Date().getTime();
-            if (xScale.max + timeShift > now) {
-                timeShift = now - xScale.max;
-            }
-            if (xScale.min + timeShift < MIN_DATE) {
-                timeShift = MIN_DATE - xScale.min;
-            }
+            if (xScale.max + timeShift > now) timeShift = now - xScale.max;
+            if (xScale.min + timeShift < MIN_DATE) timeShift = MIN_DATE - xScale.min;
 
             chart.options.scales.x.min = xScale.min + timeShift;
             chart.options.scales.x.max = xScale.max + timeShift;
+
+            pendingViewRef.current = {
+                xMin: chart.options.scales.x.min,
+                xMax: chart.options.scales.x.max,
+                yMin: chart.options.scales.y?.min,
+                yMax: chart.options.scales.y?.max,
+            };
 
             updateScaleUnit(chart, true);
             chart.update('none');
 
             if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
             wheelTimeout.current = setTimeout(() => {
-                setInternalRange({
-                    min: chart.options.scales.x.min,
-                    max: chart.options.scales.x.max
-                });
+                pendingViewRef.current = null;
+                setInternalRange({ min: chart.options.scales.x.min, max: chart.options.scales.x.max });
+            }, 500);
+
+        } else if (Math.abs(deltaY) > 0) {
+            // 세로 스크롤 → X+Y 동시 확대/축소 (마우스 위치 기준)
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            const rect = containerRef.current.getBoundingClientRect();
+
+            // 스크롤 다운 = 줌 아웃, 스크롤 업 = 줌 인
+            const zoomFactor = deltaY > 0 ? 1.1 : 0.9;
+
+            // --- X축: 마우스 X 위치 기준 줌 ---
+            const currentXRange = xScale.max - xScale.min;
+            let newXRange = currentXRange * zoomFactor;
+            const minXRange = 7 * 24 * 60 * 60 * 1000;
+            if (newXRange < minXRange) newXRange = minXRange;
+            if (newXRange > currentMaxRange) newXRange = currentMaxRange;
+
+            const mouseXOnChart = e.clientX - rect.left;
+            const xRatio = Math.max(0, Math.min(1, (mouseXOnChart - xScale.left) / xScale.width));
+            const mouseTime = xScale.min + xRatio * currentXRange;
+
+            let newXMin = mouseTime - xRatio * newXRange;
+            let newXMax = mouseTime + (1 - xRatio) * newXRange;
+            if (newXMax > now) { newXMax = now; newXMin = Math.max(MIN_DATE, newXMax - newXRange); }
+            if (newXMin < MIN_DATE) { newXMin = MIN_DATE; newXMax = Math.min(now, newXMin + newXRange); }
+
+            chart.options.scales.x.min = newXMin;
+            chart.options.scales.x.max = newXMax;
+
+            // --- Y축: 마우스 Y 위치 기준 줌 (Y축은 위쪽이 max) ---
+            const currentYRange = yScale.max - yScale.min;
+            const newYRange = currentYRange * zoomFactor;
+
+            const mouseYOnChart = e.clientY - rect.top;
+            const yRatio = Math.max(0, Math.min(1, (mouseYOnChart - yScale.top) / yScale.height));
+            const mouseYValue = yScale.max - yRatio * currentYRange;
+
+            chart.options.scales.y.min = mouseYValue - (1 - yRatio) * newYRange;
+            chart.options.scales.y.max = mouseYValue + yRatio * newYRange;
+
+            pendingViewRef.current = {
+                xMin: chart.options.scales.x.min,
+                xMax: chart.options.scales.x.max,
+                yMin: chart.options.scales.y.min,
+                yMax: chart.options.scales.y.max,
+            };
+
+            updateScaleUnit(chart, true);
+            chart.update('none');
+
+            if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
+            wheelTimeout.current = setTimeout(() => {
+                pendingViewRef.current = null;
+                setInternalRange({ min: chart.options.scales.x.min, max: chart.options.scales.x.max });
+                setInternalYRange({ min: chart.options.scales.y.min, max: chart.options.scales.y.max });
+                updateScaleUnit(chart, false);
             }, 500);
         }
-        // deltaY 기반의 줌은 chartjs-plugin-zoom이 자동으로 처리함 (modifierKey가 없으므로)
     };
 
-    // Native DOM listener로 wheel 이벤트 등록 (passive: false 필수)
+    // handleWheel을 ref로 감싸서 렌더마다 재등록하지 않고 항상 최신 구현을 호출
+    const handleWheelRef = React.useRef(null);
+    handleWheelRef.current = handleWheel;
+
     React.useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
-        el.addEventListener('wheel', handleWheel, { passive: false });
-        return () => el.removeEventListener('wheel', handleWheel);
-    });
+        const stableHandler = (e) => handleWheelRef.current(e);
+        el.addEventListener('wheel', stableHandler, { passive: false });
+        return () => el.removeEventListener('wheel', stableHandler);
+    }, []);
 
     const chartData = {
         datasets: datasets.map((ds, index) => {
@@ -316,6 +383,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
 
 
     const options = {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         layout: {
@@ -376,50 +444,21 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
                 samples: 500, // 가로 해상도에 맞춰 적절히 조절
             },
             zoom: {
-                limits: {
-                    x: {
-                        minRange: 7 * 24 * 60 * 60 * 1000,
-                        maxRange: currentMaxRange,
-                        min: MIN_DATE,
-                        max: new Date().getTime()
-                    },
-                },
-                pan: {
-                    enabled: false,
-                },
+                // 휠/핀치/팬 모두 수동 구현 — 플러그인 간섭 없이 X+Y 동시 제어
+                pan: { enabled: false },
                 zoom: {
-                    wheel: {
-                        enabled: true,
-                        speed: 0.1,
-                        // modifierKey: 'ctrl', // Removed to allow zoom without Ctrl
-                    },
-                    pinch: {
-                        enabled: true
-                    },
-                    drag: {
-                        enabled: false,
-                    },
-                    mode: 'x',
-                    onZoom: ({ chart }) => {
-                        const { min, max } = chart.scales.x;
-                        const minRange = 7 * 24 * 60 * 60 * 1000;
-                        if (max - min < minRange) {
-                            return false;
-                        }
-                        updateScaleUnit(chart, true);
-                    },
-                    onComplete: ({ chart }) => {
-                        setInternalRange({ min: chart.scales.x.min, max: chart.scales.x.max });
-                        updateScaleUnit(chart);
-                    }
+                    wheel: { enabled: false },
+                    pinch: { enabled: false },
+                    drag: { enabled: false },
+                    mode: 'xy',
                 }
             }
         },
         scales: {
             x: {
                 type: 'time',
-                min: internalRange.min,
-                max: internalRange.max,
+                min: pendingViewRef.current?.xMin ?? internalRange.min,
+                max: pendingViewRef.current?.xMax ?? internalRange.max,
                 time: {
                     unit: scaleUnit,
                     tooltipFormat: 'yyyy/MM/dd',
@@ -437,7 +476,7 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
                 ticks: {
                     color: '#A0A0A0',
                     font: { size: 11 },
-                    autoSkip: (internalRange.max - internalRange.min) >= (30 * 24 * 60 * 60 * 1000),
+                    autoSkip: ((pendingViewRef.current?.xMax ?? internalRange.max) - (pendingViewRef.current?.xMin ?? internalRange.min)) >= (30 * 24 * 60 * 60 * 1000),
                     minRotation: 45,
                     maxRotation: 45,
                     callback: function (value, index, ticks_list) {
@@ -471,8 +510,8 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
                 }
             },
             y: {
-                min: internalYRange.min,
-                max: internalYRange.max,
+                min: pendingViewRef.current?.yMin ?? internalYRange.min,
+                max: pendingViewRef.current?.yMax ?? internalYRange.max,
                 grid: {
                     color: 'rgba(255, 255, 255, 0.05)'
                 },
@@ -565,9 +604,9 @@ const ChartContainer = ({ datasets, title, timeRange, comparisonRange, refinemen
             className="chart-container"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{ cursor: dragData.current.isDragging ? 'grabbing' : 'grab', position: 'relative' }}
+            onMouseUp={handleDragEnd}
+            onMouseLeave={handleDragEnd}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', position: 'relative' }}
         >
             <div style={{ flex: 1, position: 'relative' }}>
                 <div className="chart-toolbar">
